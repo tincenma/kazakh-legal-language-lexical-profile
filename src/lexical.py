@@ -1,5 +1,7 @@
 """Lexical profile: vocabulary size per representation, Zipf's and Heaps' laws, n-grams, decades."""
+import itertools
 import math
+import re
 from collections import Counter
 
 import numpy as np
@@ -7,12 +9,55 @@ import pandas as pd
 from nltk.util import ngrams
 
 from src import config
-from src.preprocessing import STOPWORDS, char_ngrams, stem, tokenize
+from src.preprocessing import KAZAKH_LETTERS, STOPWORDS, char_ngrams, stem, tokenize
 from src.utils import load_json, save_json
 
 MIN_DOCS_PER_DECADE = 300     # decades with fewer acts are too small to compare reliably
 PROFILE_PATH = config.RESULTS_DIR / "lexical_profile.json"
 TERM_DECADE_PATH = config.RESULTS_DIR / "term_by_decade.parquet"
+
+
+# A capitalised word right before an administrative unit word is a place name:
+# "Нұра ауданының мәслихаты", "Шиелі кенті", "Достық ауылдық округі".
+ADMIN_UNITS = r"(?:аудан|облыс|қала|кент|ауыл|село|округ)\w*"
+TOPONYM_RE = re.compile(rf"\b([А-ЯЁӘҒҚҢӨҰҮҺІ][{KAZAKH_LETTERS}]+(?:-[{KAZAKH_LETTERS}]+)?)\s+{ADMIN_UNITS}")
+NOT_TOPONYMS = {"қазақстан", "республика", "республикасы", "республикасының"}
+TOPONYMS_PATH = config.RESULTS_DIR / "toponyms.txt"
+
+
+def extract_toponyms(df: pd.DataFrame, min_count: int = 3) -> set[str]:
+    """Place names (stems) found in titles, descriptions, adopting bodies and place of adoption.
+
+    Some villages are named after common words ("Еңбек ауылдық округі" - "labour"), so a
+    candidate is kept only if the corpus almost always writes it capitalised.
+    """
+    counts = Counter()
+    for col in ["title", "description", "adopting_body", "place_of_adoption"]:
+        if col not in df:
+            continue
+        for value in df[col].dropna().astype(str):
+            for name in TOPONYM_RE.findall(value):
+                counts[stem(name.lower())] += 1
+    candidates = {t for t, c in counts.items() if c >= min_count and t not in NOT_TOPONYMS}
+
+    upper, lower = Counter(), Counter()
+    word_re = re.compile(rf"(?<![.!?]\s)\b([{KAZAKH_LETTERS}А-ЯЁӘҒҚҢӨҰҮҺІ][{KAZAKH_LETTERS}]+)")
+    for text in df["text"].dropna():
+        for i, w in enumerate(word_re.findall(text)):
+            if i == 0:
+                continue                       # sentence start is always capitalised
+            s = stem(w.lower())
+            if s in candidates:
+                (upper if w[0].isupper() else lower)[s] += 1
+    # Institution names are capitalised too ("Еңбек ... министрлігі"), so a real place name must
+    # almost never appear in lower case: at most 1 lower-case use per 10 capitalised ones.
+    toponyms = {t for t in candidates if lower[t] <= 0.1 * upper[t]}
+    TOPONYMS_PATH.write_text("\n".join(sorted(toponyms)), encoding="utf-8")
+    return toponyms
+
+
+def without_toponyms(counts: Counter, toponyms: set[str]) -> Counter:
+    return Counter({w: f for w, f in counts.items() if stem(w) not in toponyms})
 
 
 def count_corpus(df: pd.DataFrame, heaps_every: int = 20_000) -> dict:
@@ -180,6 +225,17 @@ def build_profile(df: pd.DataFrame) -> dict:
 
     term_decade_matrix(counts["words"]).to_parquet(TERM_DECADE_PATH)
 
+    # Place names (district councils' acts) swamp the decade comparison, so they are removed there.
+    toponyms = extract_toponyms(df)
+    words_no_places = {d: without_toponyms(c, toponyms) for d, c in counts["words"].items()}
+    toponym_share = {str(d): round(100 * (1 - sum(words_no_places[d].values()) / max(1, sum(counts["words"][d].values()))), 2)
+                     for d in valid_decades}
+    print(f"Toponyms found: {len(toponyms)}; share of content tokens by decade (%): {toponym_share}")
+
+    def bigrams_no_places(c: Counter, n: int) -> list:
+        kept = ((g, f) for g, f in c.most_common() if not any(stem(w) in toponyms for w in g))
+        return [(" ".join(g), f) for g, f in list(itertools.islice(kept, n))]
+
     profile = {
         "docs_per_decade": {str(k): v for k, v in sorted(counts["docs"].items())},
         "decades_compared": valid_decades,
@@ -189,10 +245,11 @@ def build_profile(df: pd.DataFrame) -> dict:
         "top_words": content.most_common(100),
         "top_bigrams": [(" ".join(g), f) for g, f in merge(counts["bigrams"].values()).most_common(50)],
         "top_trigrams": [(" ".join(g), f) for g, f in merge(counts["trigrams"].values()).most_common(50)],
-        "top_words_by_decade": {str(d): counts["words"][d].most_common(50) for d in valid_decades},
-        "top_bigrams_by_decade": {str(d): [(" ".join(g), f) for g, f in counts["bigrams"][d].most_common(30)]
-                                  for d in valid_decades},
-        "decade_shifts": decade_shifts(counts["words"], counts["docs"]),
+        "n_toponyms": len(toponyms),
+        "toponym_token_share_pct": toponym_share,
+        "top_words_by_decade": {str(d): words_no_places[d].most_common(50) for d in valid_decades},
+        "top_bigrams_by_decade": {str(d): bigrams_no_places(counts["bigrams"][d], 30) for d in valid_decades},
+        "decade_shifts": decade_shifts(words_no_places, counts["docs"]),
         # rank-frequency data for plotting (kept small)
         "rank_freq": {
             "raw": sorted(counts["raw"].values(), reverse=True)[:50_000],
