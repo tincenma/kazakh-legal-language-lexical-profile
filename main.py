@@ -64,9 +64,16 @@ def step_database():
 
 
 def step_sql():
-    from src.database import run_all_queries
+    from src.database import run_all_queries, summarize_findings
+    from src.utils import save_json
     results = run_all_queries()
     print(f"\n{len(results)} queries executed; results saved to {config.RESULTS_DIR}")
+    viz.plot_sql_results(results)
+    findings = summarize_findings(results)
+    save_json(findings, config.RESULTS_DIR / "sql_findings.json")
+    print("\nKey findings from SQL:")
+    for key, value in findings.items():
+        print(f"  {key}: {value}")
     mark_step_done("sql", n_queries=len(results))
 
 

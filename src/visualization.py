@@ -192,6 +192,70 @@ def plot_error_by_group(errors: pd.DataFrame, column: str, title: str, name: str
     return _save(fig, name)
 
 
+def _short(name: str, n: int = 45) -> str:
+    """Shorten long official names: drop parentheses and trim."""
+    name = str(name).split(" (")[0]
+    return name if len(name) <= n else name[: n - 1] + "…"
+
+
+def plot_sql_results(results: dict[str, pd.DataFrame], min_decade: int = 1990) -> list[Path]:
+    """Charts built directly from SQL query results (loaded into pandas)."""
+    paths = []
+
+    if "section_growth" in results:
+        df = results["section_growth"]
+        df = df[df["decade"] >= min_decade]
+        top = df.groupby("section")["n_acts"].sum().nlargest(8).index
+        pivot = df[df["section"].isin(top)].pivot(index="decade", columns="section", values="n_acts").fillna(0)
+        fig, ax = plt.subplots(figsize=(9, 4.5))
+        for col in pivot.columns:
+            ax.plot([f"{d}s" for d in pivot.index], pivot[col], "o-", label=_short(col, 35))
+        ax.set(title="Acts per decade in the 8 largest sections (SQL: section_growth)", ylabel="acts",
+               xlabel="decade (2020s = 2020-2026, still incomplete)")
+        ax.legend(fontsize=7, loc="upper left")
+        paths.append(_save(fig, "15_sql_section_growth"))
+
+    if "area_share_by_decade" in results:
+        df = results["area_share_by_decade"]
+        df = df[df["decade"] >= min_decade]
+        pivot = df.pivot(index="decade", columns="area", values="share_pct").fillna(0)
+        pivot = pivot[pivot.sum().sort_values(ascending=False).index]
+        fig, ax = plt.subplots(figsize=(9, 4.8))
+        bottom = np.zeros(len(pivot))
+        for col in pivot.columns:
+            ax.bar([f"{d}s" for d in pivot.index], pivot[col], bottom=bottom, label=_short(col, 40))
+            bottom += pivot[col].values
+        ax.set(title="Share of the top-10 legal relation areas by decade (SQL: area_share_by_decade)",
+               ylabel="% of area links in decade")
+        ax.legend(fontsize=7, bbox_to_anchor=(1.01, 1), loc="upper left")
+        paths.append(_save(fig, "16_sql_area_share"))
+
+    if "repealed_by_form" in results:
+        df = results["repealed_by_form"].nlargest(15, "n_acts").sort_values("repealed_pct")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        bars = ax.barh(df["act_form"], df["repealed_pct"], color="#c44e52")
+        ax.bar_label(bars, labels=[f"{p}% of {n:,}" for p, n in zip(df["repealed_pct"], df["n_acts"])], fontsize=7)
+        ax.set(title="Repeal rate of the 15 most common act forms (SQL: repealed_by_form)", xlabel="% repealed")
+        paths.append(_save(fig, "17_sql_repealed_by_form"))
+
+    if "top_bodies" in results:
+        df = results["top_bodies"].head(12).iloc[::-1]
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.barh([_short(b) for b in df["body"]], df["n_acts"], color="#2a6f97")
+        ax.set(title="Most productive adopting bodies (SQL: top_bodies)", xlabel="acts")
+        paths.append(_save(fig, "18_sql_top_bodies"))
+
+    if "text_length_by_section" in results:
+        df = results["text_length_by_section"].sort_values("avg_tokens")
+        fig, ax = plt.subplots(figsize=(8, 0.25 * len(df) + 1))
+        colors = ["#c44e52" if d < 0 else "#2a6f97" for d in df["diff_from_mean"]]
+        ax.barh([_short(s, 40) for s in df["section"]], df["diff_from_mean"], color=colors)
+        ax.set(title="Text length vs corpus mean by section (SQL: text_length_by_section)",
+               xlabel="difference from mean, tokens")
+        paths.append(_save(fig, "19_sql_text_length_by_section"))
+    return paths
+
+
 def draw_er_diagram(path: Path = config.DOCS_DIR / "er_diagram.png") -> Path:
     """Draw the ER diagram of sql/schema.sql with matplotlib (no external tools needed)."""
     tables = {

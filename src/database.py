@@ -96,6 +96,37 @@ def run_query(sql: str, db_path: Path = config.DB_PATH, params=None) -> pd.DataF
         return pd.read_sql_query(sql, conn, params=params)
 
 
+def summarize_findings(results: dict[str, pd.DataFrame]) -> dict:
+    """Turn the SQL result tables into the key facts used in the report."""
+    findings = {}
+    if "acts_per_decade" in results:
+        d = results["acts_per_decade"]
+        total = d["n_acts"].sum()
+        findings["acts_since_2010_pct"] = round(100 * d.loc[d["decade"] >= 2010, "n_acts"].sum() / total, 1)
+        findings["acts_before_1990"] = int(d.loc[d["decade"] < 1990, "n_acts"].sum())
+    if "section_growth" in results:
+        g = results["section_growth"]
+        last = g[(g["decade"] == g["decade"].max()) & g["change"].notna()]
+        if len(last):
+            up, down = last.nlargest(1, "change").iloc[0], last.nsmallest(1, "change").iloc[0]
+            findings["largest_growth_last_decade"] = {"section": up["section"], "change": int(up["change"])}
+            findings["largest_decline_last_decade"] = {"section": down["section"], "change": int(down["change"])}
+    if "area_share_by_decade" in results:
+        s = results["area_share_by_decade"]
+        top_area = s.groupby("area")["n"].sum().idxmax()
+        share = s[s["area"] == top_area].set_index("decade")["share_pct"]
+        findings["top_area"] = {"area": top_area, "share_by_decade_pct": {int(k): float(v) for k, v in share.items()}}
+    if "repealed_by_form" in results:
+        r = results["repealed_by_form"].iloc[0]
+        findings["most_repealed_form"] = {"form": r["act_form"], "repealed_pct": float(r["repealed_pct"]),
+                                          "n_acts": int(r["n_acts"])}
+    if "top_bodies" in results and "acts_per_decade" in results:
+        b = results["top_bodies"].iloc[0]
+        findings["top_body"] = {"body": b["body"].split(" (")[0], "n_acts": int(b["n_acts"]),
+                                "share_pct": round(100 * b["n_acts"] / results["acts_per_decade"]["n_acts"].sum(), 1)}
+    return findings
+
+
 def run_all_queries(db_path: Path = config.DB_PATH, save: bool = True) -> dict[str, pd.DataFrame]:
     """Run every query in queries.sql, print a preview and save each result as CSV."""
     results = {}
