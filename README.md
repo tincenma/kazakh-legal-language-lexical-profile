@@ -20,12 +20,24 @@ Final project for **Programming for Data Analysis and Database**
 
 ## 1. Dataset
 
-**KazakhLawCorpus-clean** (Hugging Face):
+**KazakhLawCorpus-clean** (Hugging Face, CC BY 4.0):
 <https://huggingface.co/datasets/Arailym-tleubayeva/KazakhLawCorpus-clean>
 
-- A CSV of about **336 MB** with Kazakh legal acts: full text plus metadata (title, issuing body, adoption date, `legal_relation_area`, and so on).
-- The raw file is **not committed** because of its size. Section 4 explains how to download it.
-- Known quirks the audit has to handle: missing values, mixed date formats, the multi-valued `legal_relation_area` field, and placeholder values.
+- One file, `data/kazakhlawcorpus_kk_only.csv`, about **337 MB**, with **215,889 acts** (one row per act) and 25 columns.
+- Acts were adopted between 1947 and 2026.
+- The corpus has **no full act text**. The text analysed here is `title` + `description` (a short line such as "Order of the Minister of ... No. 417 of 15 July 2004").
+- Main metadata columns: `law_id`, `date_adopted` (ISO `YYYY-MM-DD`), `is_repealed` (`t`/`f`), `act_form`, `legal_relation_area`, `legal_force`, `adopting_body`, `region` and `database_section`.
+- The raw file is **not committed** because of its size. Menu item 1 downloads it automatically.
+
+Data quality problems the audit handles:
+
+| Problem | Example | How it is handled |
+|---|---|---|
+| Placeholders instead of missing values | `ЖОҚ`, `НЕТ`, `undefined`, `-` | converted to `NaN` and counted per column |
+| Multi-valued fields | `legal_relation_area`, `act_form` joined with `", "` | split into tags; the many-to-many tables `act_areas` and `act_forms` |
+| Commas *inside* a tag | `Нормативтік құқықтық актілер: дайындау, қабылдау, ...` | a piece starting in lower case is glued back to the previous tag |
+| Repeated boilerplate titles | `... күшін жою туралы` ("on repealing ...") | removed from the test set if the same title is in train (no leakage) |
+| `is_archive` / `is_repealed` stored as text | `"t"` / `"f"` | converted to the `boolean` dtype |
 
 ---
 
@@ -33,99 +45,110 @@ Final project for **Programming for Data Analysis and Database**
 
 ```
 kazakh-legal-language-lexical-profile/
-├── main.py                  # entry point: interactive console menu
+├── main.py                  # entry point: console menu and --run-all mode
 ├── requirements.txt         # pinned library versions
-├── README.md
 ├── src/
-│   ├── config.py            # paths, constants (pathlib)
-│   ├── data_loader.py       # chunked CSV reading, dtype optimisation, CSV → Parquet, memory measurement
-│   ├── audit.py             # metadata audit: missing values, date formats, multi-valued fields, placeholders
-│   ├── database.py          # normalised SQLite schema, loading, running SQL → pandas
-│   ├── preprocessing.py     # Kazakh tokenisation, stop words, suffix stemmer, char n-grams
-│   ├── lexical.py           # vocabulary size, frequencies, Zipf fit, n-grams, decade comparison
-│   ├── models.py            # baseline vs methods, leakage-free split, metrics, timing/memory
-│   ├── error_analysis.py    # misclassification inspection
-│   └── visualization.py     # Matplotlib plots, WordClouds
+│   ├── config.py            # paths and constants (pathlib, os)
+│   ├── utils.py             # JSON I/O, program state, time and memory measurement
+│   ├── data_loader.py       # download, chunked CSV reading, dtype optimisation, CSV vs Parquet
+│   ├── audit.py             # missing values, date formats, placeholders, multi-valued fields
+│   ├── database.py          # normalised SQLite schema, loading, SQL → pandas
+│   ├── preprocessing.py     # Kazakh tokeniser, stop words, suffix stemmer, char n-grams
+│   ├── lexical.py           # vocabulary sizes, Zipf/Heaps fits, n-grams, decade comparison
+│   ├── models.py            # baselines vs methods, leakage-free split, metrics
+│   ├── error_analysis.py    # confusions, errors by text length and year
+│   └── visualization.py     # Matplotlib plots, word clouds, ER diagram
 ├── sql/
-│   ├── schema.sql           # DDL for the normalised schema
-│   └── queries.sql          # 8+ analytical queries
+│   ├── schema.sql           # DDL: 7 tables
+│   └── queries.sql          # 10 analytical queries
 ├── data/
-│   ├── raw/                 # original CSV (git-ignored)
-│   ├── processed/           # Parquet, SQLite .db (git-ignored)
-│   └── stopwords_kk.txt     # Kazakh stop-word list
+│   ├── stopwords_kk.txt     # Kazakh stop words (plus legal boilerplate)
+│   ├── raw/                 # downloaded CSV (git-ignored)
+│   └── processed/           # Parquet, SQLite db, trained model (git-ignored)
 ├── docs/
-│   └── er_diagram.png       # ER diagram
-├── reports/
-│   ├── figures/             # generated plots
-│   ├── results/             # metrics tables (.csv / .json)
-│   ├── report.pdf           # written report
-│   └── presentation.pptx    # defense slides
-└── notebooks/
-    └── eda.ipynb            # exploratory analysis (optional)
+│   └── er_diagram.png       # generated by menu item 3
+└── reports/
+    ├── figures/             # all plots (PNG)
+    └── results/             # tables and metrics (CSV / JSON)
 ```
 
 ---
 
 ## 3. Pipeline
 
-### 3.1 Loading large data (requirement 11)
-- Read the CSV with `pandas.read_csv(chunksize=...)`.
-- Optimise dtypes: `category` for low-cardinality metadata, `datetime64` for dates, and downcast numeric columns.
-- Measure memory **before and after** with `DataFrame.memory_usage(deep=True)`.
-- Convert to **Parquet** and compare CSV vs Parquet on load time, file size and RAM.
+### 3.1 Loading large data (`data_loader.py`, requirement 11)
+- Reads the CSV with `pd.read_csv(chunksize=50_000)` and cleans placeholders chunk by chunk.
+- Optimises dtypes: `datetime64` for dates, `boolean` for `t`/`f` flags, `category` for repeated metadata (body, section, form, region) and downcast integers.
+- Measures memory **before and after** (`memory_usage(deep=True)`) and compares **CSV vs Parquet** on file size, read time and RAM.
+- Results go to `reports/results/loading_benchmark.json` and `figures/01_loading_benchmark.png`.
 
-### 3.2 Metadata audit
-- Missing values per field (count and %).
-- Date formats found in the data, unparseable dates, and the range of adoption years.
-- Multi-valued `legal_relation_area`: split on its separator and count values per act.
-- Placeholder values (such as `-`, `нет`, `null`, empty strings) and how each is handled.
-- Output: `reports/results/audit.json` plus plots.
+### 3.2 Metadata audit (`audit.py`)
+Reports missing values per field, raw date formats (ISO vs other), placeholder counts in the raw CSV, duplicate IDs and titles, acts per decade, and statistics for the multi-valued fields.
+Results go to `audit.json`, `missing_values.csv` and `02_missing_values.png`.
 
-### 3.3 Relational database (requirement 10)
-A normalised **SQLite** schema:
+### 3.3 Relational database (`database.py`, `sql/`, requirement 10)
 
-| Table | Content |
+```
+bodies 1──N acts N──1 sections
+              │
+              ├──N act_areas N──1 areas     (many-to-many)
+              └──N act_forms N──1 forms     (many-to-many)
+```
+
+The ER diagram is drawn to `docs/er_diagram.png`. `sql/queries.sql` holds **10 queries**, each loaded into pandas with `pd.read_sql_query` and saved to `reports/results/sql_*.csv`:
+
+| Query | SQL features |
 |---|---|
-| `acts` | act_id, title, adoption_date, year, decade, body_id, text length |
-| `bodies` | body_id, name (issuing authority) |
-| `areas` | area_id, name (legal relation area) |
-| `act_areas` | act_id, area_id: the **many-to-many** link |
+| `acts_per_decade` | GROUP BY, conditional aggregation |
+| `top_bodies` | JOIN, GROUP BY / HAVING |
+| `top_areas` | two JOINs over the many-to-many link |
+| `multi_area_acts` | nested subquery in HAVING |
+| `section_growth` | CTE + `LAG()` window |
+| `body_rank_per_decade` | two CTEs + `RANK()` window |
+| `cumulative_acts` | running `SUM() OVER` |
+| `area_share_by_decade` | CTE + `IN` subquery + `SUM() OVER (PARTITION BY)` |
+| `text_length_by_section` | JOIN + scalar subquery |
+| `repealed_by_form` | JOIN + HAVING + `PERCENT_RANK()` |
 
-The ER diagram is in `docs/er_diagram.png`. `sql/queries.sql` holds at least 8 queries that use
-`JOIN`, `GROUP BY ... HAVING`, subqueries/**CTE**s and **window functions**
-(`RANK`, `LAG`, running totals by decade, and similar). Each result is loaded into pandas with `pd.read_sql_query`.
+### 3.4 Kazakh text preprocessing (`preprocessing.py`)
+Kazakh is agglutinative: заң (law) → заңдар → заңдарының → заңдарынан. Three representations are compared:
 
-### 3.4 Kazakh text preprocessing
-Kazakh is agglutinative, so one lemma can appear in dozens of surface forms. Three text representations are compared:
-1. **Word forms**: lower-cased tokens after stop-word removal.
-2. **Suffix stemming**: a rule-based stripper for Kazakh plural, case, possessive and verbal suffixes.
-3. **Character n-grams**: sub-word units (for example 3–5 characters) that capture morphology without rules.
+1. **Word forms**: lower-cased Kazakh tokens after stop-word removal.
+2. **Suffix stems**: a rule-based stripper that removes one suffix per group, from the outside in: case → possessive → plural → derivational. It also reverses consonant alternation (кітабы → кітап, министрлігі → министрлік) and keeps a short exception list (қазақстан).
+3. **Character 3–5-grams**: sub-word units with word-boundary marks, which catch shared morphemes without any rules.
 
-### 3.5 Lexical profile (core of the topic)
-- Vocabulary size and type/token ratio per representation, showing **how much stemming reduces vocabulary**.
-- **Zipf's law**: a rank–frequency log–log plot with a fitted exponent, overall and per decade.
-- Most frequent unigrams, bigrams and trigrams (NLTK), and legal terminology.
-- **Decade comparison**: terms that appear, disappear or change in frequency; word clouds per decade.
+### 3.5 Lexical profile (`lexical.py`)
+- **Vocabulary size** for each representation (types, tokens, type/token ratio, hapax share), showing how much stemming shrinks the vocabulary.
+- **Zipf's law**: a rank–frequency log–log plot with a least-squares exponent *s* and R², for the whole corpus and for each decade.
+- **Heaps' law**: vocabulary growth fitted as V = K·N^β, in chronological order.
+- The most frequent words, **bigrams and trigrams** (NLTK), overall and per decade.
+- **Decade comparison**: terms that rise, fall or first appear between consecutive decades (smoothed log ratio), word clouds per decade, and the history of any single term.
 
-### 3.6 Method comparison (requirement 9 and cluster tasks)
-- **Task:** classify an act's `legal_relation_area` from its text (multi-valued labels handled explicitly).
-- **Baseline:** most-frequent class, plus a word-form BoW model.
-- **Methods:** TF-IDF on stemmed tokens vs TF-IDF on character n-grams, using a linear classifier.
-- **Leakage-free split:** split by **adoption date** (train on older acts, test on newer ones) and **drop titles that appear in both sets**.
-- **Criteria:** **F1-macro**, training and inference time, peak memory (`tracemalloc`) and vocabulary size.
-- **Error analysis:** confusion between areas, typical misclassified acts, and the effect of short or noisy texts.
+Decades with fewer than 300 acts are left out of the comparisons.
 
-### 3.7 User interaction
-The console menu lets the user type a query or a piece of text and see:
-- its preprocessed tokens and stems,
-- the predicted legal relation area,
-- term frequencies by decade for a chosen word.
+### 3.6 Method comparison (`models.py`, requirement 9 and cluster tasks)
+- **Task:** predict an act's `database_section` (its thematic section) from title + description.
+- **Leakage-free split:** acts adopted **before 2018 go to train** and **2018 onwards go to test**. Test acts whose normalised title also occurs in train are **removed**. Sections with fewer than 200 training acts are dropped.
+- **Models** (all except the majority baseline use the same `LinearSVC`, so differences come from the text representation):
+
+| Model | Role |
+|---|---|
+| `baseline_majority` | always predicts the most common section |
+| `baseline_wordform_tfidf` | TF-IDF on word forms, with no morphology handling |
+| `stem_tfidf` | TF-IDF on suffix stems |
+| `char_ngram_tfidf` | TF-IDF on character 3–5-grams |
+
+- **Criteria:** **F1-macro** (main metric), F1-weighted, accuracy, fit and predict time, peak memory (`tracemalloc`) and number of features.
+- The best model is saved to `data/processed/models/best_model.joblib`.
+
+### 3.7 Error analysis (`error_analysis.py`)
+Covers the confusion matrix, the most frequent *true → predicted* section pairs, error rate by text length and by year, sample errors (`error_examples.csv`), and the acts that only the word-form model or only the char n-gram model gets right.
 
 ---
 
 ## 4. Installation and running
 
-**Requirements:** Python 3.10 or newer.
+**Requirements:** Python 3.10 or newer (tested on 3.12).
 
 ```bash
 git clone <repo-url>
@@ -148,19 +171,31 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**Get the data.** Download the CSV from the Hugging Face page above into `data/raw/`, or let the program fetch it (menu item 1).
-
-**Run:**
+**Interactive menu:**
 
 ```bash
 python main.py
 ```
 
+**Whole pipeline without the menu** (downloads the data on the first run):
+
+```bash
+python main.py --run-all
+```
+
+**Quick test on the first 20,000 rows:**
+
+```bash
+python main.py --run-all --nrows 20000
+```
+
+If the CSV is stored somewhere else (for example on Google Drive in Colab), set `KLP_CSV_PATH=/path/to/file.csv` before running.
+
 ### Console menu
 
 ```
 ==== Kazakh Legal Lexical Profile ====
-1 – Load data (CSV → Parquet, dtype optimisation)
+1 – Load data (CSV -> Parquet, dtype optimisation)
 2 – Metadata audit
 3 – Build / refresh SQLite database
 4 – Run SQL analytics
@@ -172,8 +207,8 @@ python main.py
 0 – Exit
 ```
 
-All results are saved to `reports/figures/` and `reports/results/`.
-Google Colab, VS Code and PyCharm Community Edition are supported.
+Run the steps in order the first time. Completed steps are marked `[done]` (stored in `reports/results/state.json`).
+**Item 8** asks the user for a text. It shows the word forms, stems and char n-grams, the top-3 predicted sections, and, for a single word, its frequency in each decade with a plot.
 
 ---
 
@@ -181,31 +216,33 @@ Google Colab, VS Code and PyCharm Community Edition are supported.
 
 | # | Requirement | Where |
 |---|---|---|
-| 1 | At least 5 functions besides `main` | every module in `src/` |
-| 2 | Lists / dicts | token lists, frequency dicts, config and result dicts |
-| 3 | `if / elif / else` | menu dispatch, audit rules, preprocessing rules |
-| 4 | Loops | chunk iteration, menu `while` loop, per-decade loops |
-| 5 | File I/O | CSV/Parquet/JSON/TXT read and write in `data/` and `reports/` |
-| 6 | `try / except` | missing files, invalid menu input, date parsing, DB errors |
+| 1 | At least 5 functions besides `main` | over 60 functions across the 10 modules in `src/` |
+| 2 | Lists / dicts | token lists, `Counter`s per decade, menu and action dicts, result dicts |
+| 3 | `if / elif / else` | menu dispatch, `preprocess()` mode switch, stemmer rules |
+| 4 | Loops | chunk loop, menu `while` loop, corpus pass, per-decade loops |
+| 5 | File I/O | CSV / Parquet / JSON / TXT / SQLite / joblib in `data/` and `reports/` |
+| 6 | `try / except` | missing files, broken JSON, invalid menu input, SQL errors, missing stop-word file |
 | 7 | UI | interactive console menu (`main.py`) |
-| 8 | Modularity | `src/` package; `os`, `pathlib`, `datetime`, `json`, `time` |
-| 9 | Approach comparison | baseline vs stemming vs char n-grams; CSV vs Parquet |
-| 10 | DB and SQL | SQLite, ER diagram, 8+ queries with JOIN/CTE/window functions |
-| 11 | Data volume | 336 MB CSV, chunksize, dtype optimisation, Parquet |
+| 8 | Modularity | `src/` package; `os`, `pathlib`, `datetime`, `json`, `time`, `re`, `sqlite3`, `argparse` |
+| 9 | Approach comparison | 2 baselines vs stems vs char n-grams (quality, time, memory); CSV vs Parquet |
+| 10 | DB and SQL | SQLite, 7 tables, ER diagram, 10 queries with JOIN, HAVING, subqueries, CTEs and windows |
+| 11 | Data volume | 337 MB / 216k rows, chunksize, dtype optimisation, Parquet |
 
 ---
 
 ## 6. Results
 
-_To be filled in after the experiments: memory and timing tables, vocabulary reduction from stemming, Zipf exponents per decade, and F1-macro for each method._
+_To be filled in after the full run: memory and timing tables, vocabulary reduction from stemming, Zipf exponents per decade, and F1-macro for each method._
+All numbers come from `reports/results/` and all plots from `reports/figures/`.
 
 ---
 
 ## 7. Deliverables
 
-- [ ] Source code in this GitHub repository, with a meaningful commit history
-- [ ] `requirements.txt` with pinned versions
-- [ ] Data link (Hugging Face) or processed files
+- [x] Source code in this GitHub repository
+- [x] `requirements.txt` with pinned versions
+- [x] Link to the data source (Hugging Face)
+- [ ] Meaningful commit history
 - [ ] Written report: data, methods, results with metric tables, limitations, conclusions, references
 - [ ] Presentation (`.pptx` / `.pdf`) uploaded to Moodle **2–3 days before the exam**
 - [ ] Each member's contribution stated in the report and the slides
@@ -214,4 +251,6 @@ _To be filled in after the experiments: memory and timing tables, vocabulary red
 
 - Tleubayeva A. *KazakhLawCorpus-clean*, Hugging Face Datasets.
 - Zipf G. K. *Human Behavior and the Principle of Least Effort*, 1949.
+- Heaps H. S. *Information Retrieval: Computational and Theoretical Aspects*, 1978.
 - Bird S., Klein E., Loper E. *Natural Language Processing with Python* (NLTK).
+- Pedregosa F. et al. *Scikit-learn: Machine Learning in Python*, JMLR 12, 2011.
