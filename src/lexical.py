@@ -1,0 +1,227 @@
+"""Lexical profile: vocabulary size per representation, Zipf's and Heaps' laws, n-grams, decades."""
+import math
+from collections import Counter
+
+import numpy as np
+import pandas as pd
+from nltk.util import ngrams
+
+from src import config
+from src.preprocessing import STOPWORDS, char_ngrams, stem, tokenize
+from src.utils import load_json, save_json
+
+MIN_DOCS_PER_DECADE = 300     # decades with fewer acts are too small to compare reliably
+PROFILE_PATH = config.RESULTS_DIR / "lexical_profile.json"
+TERM_DECADE_PATH = config.RESULTS_DIR / "term_by_decade.parquet"
+
+
+def count_corpus(df: pd.DataFrame, heaps_every: int = 20_000) -> dict:
+    """One pass over the corpus collecting every counter we need.
+
+    Returns raw-token counts, content-word counts per decade, bigram/trigram counts per
+    decade and the Heaps curve (vocabulary size vs tokens seen, in chronological order).
+    """
+    raw = Counter()
+    words_by_decade: dict[int, Counter] = {}
+    bigrams_by_decade: dict[int, Counter] = {}
+    trigrams_by_decade: dict[int, Counter] = {}
+    docs_by_decade: Counter = Counter()
+    heaps = []
+    seen_tokens = 0
+
+    ordered = df.sort_values("date_adopted")[["decade", "text"]]
+    for decade, text in ordered.itertuples(index=False):
+        decade = int(decade) if pd.notna(decade) else -1
+        tokens = tokenize(text)
+        raw.update(tokens)
+        content = [t for t in tokens if t not in STOPWORDS]
+
+        words_by_decade.setdefault(decade, Counter()).update(content)
+        bigrams_by_decade.setdefault(decade, Counter()).update(ngrams(content, 2))
+        trigrams_by_decade.setdefault(decade, Counter()).update(ngrams(content, 3))
+        docs_by_decade[decade] += 1
+
+        before = seen_tokens
+        seen_tokens += len(tokens)
+        if seen_tokens // heaps_every > before // heaps_every:
+            heaps.append((seen_tokens, len(raw)))
+
+    heaps.append((seen_tokens, len(raw)))
+    return {"raw": raw, "words": words_by_decade, "bigrams": bigrams_by_decade,
+            "trigrams": trigrams_by_decade, "docs": docs_by_decade, "heaps": heaps}
+
+
+def derive_stems(word_counts: Counter) -> Counter:
+    """Stem counts derived from word-form counts (stem each word type once)."""
+    stems = Counter()
+    for word, freq in word_counts.items():
+        stems[stem(word)] += freq
+    return stems
+
+
+def derive_char_ngrams(word_counts: Counter) -> Counter:
+    grams = Counter()
+    for word, freq in word_counts.items():
+        for g in char_ngrams(word):
+            grams[g] += freq
+    return grams
+
+
+def vocab_stats(counts: Counter) -> dict:
+    tokens = sum(counts.values())
+    types = len(counts)
+    hapax = sum(1 for f in counts.values() if f == 1)
+    return {"types": types, "tokens": tokens,
+            "ttr": round(types / tokens, 5) if tokens else 0,
+            "hapax": hapax, "hapax_pct": round(100 * hapax / types, 1) if types else 0}
+
+
+def vocabulary_comparison(raw: Counter, content: Counter) -> pd.DataFrame:
+    """Effect of each preprocessing step on vocabulary size."""
+    rows = {
+        "word forms (all)": vocab_stats(raw),
+        "word forms (no stop words)": vocab_stats(content),
+        "suffix stems": vocab_stats(derive_stems(content)),
+        "char 3-5-grams": vocab_stats(derive_char_ngrams(content)),
+    }
+    table = pd.DataFrame(rows).T
+    base = table.loc["word forms (no stop words)", "types"]
+    table["types_vs_wordforms_pct"] = (100 * table["types"] / base).round(1)
+    return table
+
+
+def fit_zipf(counts: Counter, min_freq: int = 2) -> dict:
+    """Fit log f = log C - s * log r by least squares (hapax tail excluded)."""
+    freqs = np.array(sorted((f for f in counts.values() if f >= min_freq), reverse=True), dtype=float)
+    if len(freqs) < 10:
+        return {"s": None, "r2": None, "n_types": len(freqs)}
+    ranks = np.arange(1, len(freqs) + 1)
+    x, y = np.log(ranks), np.log(freqs)
+    slope, intercept = np.polyfit(x, y, 1)
+    pred = slope * x + intercept
+    r2 = 1 - ((y - pred) ** 2).sum() / ((y - y.mean()) ** 2).sum()
+    return {"s": round(-slope, 3), "log_c": round(intercept, 3), "r2": round(r2, 4), "n_types": len(freqs)}
+
+
+def fit_heaps(points: list[tuple[int, int]]) -> dict:
+    """Fit V = K * N^beta on the Heaps curve."""
+    pts = np.array([p for p in points if p[0] > 0], dtype=float)
+    if len(pts) < 3:
+        return {"K": None, "beta": None}
+    beta, log_k = np.polyfit(np.log(pts[:, 0]), np.log(pts[:, 1]), 1)
+    return {"K": round(math.exp(log_k), 2), "beta": round(beta, 3)}
+
+
+def term_decade_matrix(words_by_decade: dict[int, Counter], top_n: int = 20_000) -> pd.DataFrame:
+    """Frequency per million tokens of the top-N terms in every decade."""
+    total = Counter()
+    for c in words_by_decade.values():
+        total.update(c)
+    vocab = [w for w, _ in total.most_common(top_n)]
+    data = {}
+    for decade, counts in sorted(words_by_decade.items()):
+        if decade < 0:
+            continue
+        n = sum(counts.values()) or 1
+        data[str(decade)] = [counts.get(w, 0) / n * 1e6 for w in vocab]   # parquet needs str columns
+    return pd.DataFrame(data, index=vocab).round(2)
+
+
+def decade_shifts(words_by_decade: dict[int, Counter], docs: Counter, top: int = 20,
+                  min_count: int = 20) -> list[dict]:
+    """For each pair of consecutive decades: terms that grew or declined most (smoothed log ratio)."""
+    decades = sorted(d for d in words_by_decade if d >= 0 and docs[d] >= MIN_DOCS_PER_DECADE)
+    shifts = []
+    for prev, cur in zip(decades, decades[1:]):
+        a, b = words_by_decade[prev], words_by_decade[cur]
+        na, nb = sum(a.values()), sum(b.values())
+        scores = {}
+        for w in set(a) | set(b):
+            if a[w] + b[w] < min_count:
+                continue
+            scores[w] = math.log(((b[w] + 1) / (nb + 1)) / ((a[w] + 1) / (na + 1)))
+        ranked = sorted(scores.items(), key=lambda kv: kv[1])
+        new_terms = [w for w, f in b.most_common() if a[w] == 0 and f >= min_count][:top]
+        shifts.append({
+            "from": prev, "to": cur,
+            "rising": [(w, round(s, 2)) for w, s in ranked[::-1][:top]],
+            "falling": [(w, round(s, 2)) for w, s in ranked[:top]],
+            "new_terms": new_terms,
+        })
+    return shifts
+
+
+def merge(counters) -> Counter:
+    total = Counter()
+    for c in counters:
+        total.update(c)
+    return total
+
+
+def build_profile(df: pd.DataFrame) -> dict:
+    """Full lexical analysis; saves lexical_profile.json and term_by_decade.parquet."""
+    print("Counting tokens (one pass over the corpus)...")
+    counts = count_corpus(df)
+    content = merge(counts["words"].values())
+
+    vocab_table = vocabulary_comparison(counts["raw"], content)
+    vocab_table.to_csv(config.RESULTS_DIR / "vocabulary_comparison.csv")
+    print("\nVocabulary size by representation:")
+    print(vocab_table.to_string())
+
+    valid_decades = sorted(d for d in counts["words"] if d >= 0 and counts["docs"][d] >= MIN_DOCS_PER_DECADE)
+    zipf = {"all_raw": fit_zipf(counts["raw"]), "all_content": fit_zipf(content),
+            "all_stems": fit_zipf(derive_stems(content))}
+    for d in valid_decades:
+        zipf[str(d)] = fit_zipf(counts["words"][d])
+    heaps = fit_heaps(counts["heaps"])
+    print(f"\nZipf exponent s (raw tokens): {zipf['all_raw']['s']}  R²={zipf['all_raw']['r2']}")
+    print(f"Heaps' law: K={heaps['K']}, beta={heaps['beta']}")
+
+    term_decade_matrix(counts["words"]).to_parquet(TERM_DECADE_PATH)
+
+    profile = {
+        "docs_per_decade": {str(k): v for k, v in sorted(counts["docs"].items())},
+        "decades_compared": valid_decades,
+        "vocabulary": vocab_table.to_dict(orient="index"),
+        "zipf": zipf,
+        "heaps": {**heaps, "curve": counts["heaps"]},
+        "top_words": content.most_common(100),
+        "top_bigrams": [(" ".join(g), f) for g, f in merge(counts["bigrams"].values()).most_common(50)],
+        "top_trigrams": [(" ".join(g), f) for g, f in merge(counts["trigrams"].values()).most_common(50)],
+        "top_words_by_decade": {str(d): counts["words"][d].most_common(50) for d in valid_decades},
+        "top_bigrams_by_decade": {str(d): [(" ".join(g), f) for g, f in counts["bigrams"][d].most_common(30)]
+                                  for d in valid_decades},
+        "decade_shifts": decade_shifts(counts["words"], counts["docs"]),
+        # rank-frequency data for plotting (kept small)
+        "rank_freq": {
+            "raw": sorted(counts["raw"].values(), reverse=True)[:50_000],
+            "stems": sorted(derive_stems(content).values(), reverse=True)[:50_000],
+        },
+    }
+    save_json(profile, PROFILE_PATH)
+    return profile
+
+
+def load_profile() -> dict:
+    profile = load_json(PROFILE_PATH)
+    if profile is None:
+        raise FileNotFoundError("Lexical profile not found. Run menu item 5 first.")
+    return profile
+
+
+def term_history(word: str) -> pd.Series | None:
+    """Frequency per million of a word (or its stem) across decades."""
+    if not TERM_DECADE_PATH.exists():
+        raise FileNotFoundError("Run menu item 5 (Lexical profile) first.")
+    matrix = pd.read_parquet(TERM_DECADE_PATH)
+    word = word.strip().lower()
+    if word in matrix.index:
+        return matrix.loc[word]
+    # fall back to all forms sharing the same stem
+    target = stem(word)
+    forms = [w for w in matrix.index if stem(w) == target]
+    if not forms:
+        return None
+    print(f"  '{word}' not found; summing {len(forms)} forms with stem '{target}': {forms[:8]}")
+    return matrix.loc[forms].sum()
