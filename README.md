@@ -232,8 +232,76 @@ Run the steps in order the first time. Completed steps are marked `[done]` (stor
 
 ## 6. Results
 
-_To be filled in after the full run: memory and timing tables, vocabulary reduction from stemming, Zipf exponents per decade, and F1-macro for each method._
+From `python main.py --run-all` on the full corpus (215,889 acts, Python 3.12, Windows 11).
 All numbers come from `reports/results/` and all plots from `reports/figures/`.
+
+### 6.1 Loading and storage
+
+| | CSV (object dtypes) | Optimised dtypes | Parquet |
+|---|---|---|---|
+| File size | 321 MB | – | **63 MB** |
+| Read time | 3.6 s | – | **1.3 s** |
+| DataFrame memory | 617 MB | **355 MB (−42.5%)** | – |
+
+### 6.2 Data audit
+- `law_id` has no duplicates, but **53,916 titles are duplicates**, mostly boilerplate.
+- **Only 53 acts were adopted before 1990.** Per decade: 1990s 9,455; 2000s 28,302; 2010s 91,706; 2020s 86,373. Decade comparisons therefore cover 1990–2020s.
+- Placeholders were still present despite the dataset card: for example `regulatory_body` has 93,272 `ЖОҚ`, and `gov_registration_number` has 54,826 `НЕТ` and 23,948 `undefined`.
+- `legal_relation_area` has 351 distinct tags. 152,674 acts have more than one (up to 12 per act).
+- Some `database_section` values are numeric codes (`3700`, `3800`) instead of names.
+
+### 6.3 Vocabulary and the effect of stemming
+
+| Representation | Types | Tokens | Hapax % | Types vs word forms |
+|---|---|---|---|---|
+| word forms (all) | 36,931 | 7.47 M | 34.4 | 100.3% |
+| word forms (no stop words) | 36,829 | 5.86 M | 34.5 | 100% |
+| **suffix stems** | **21,830** | 5.86 M | 35.6 | **59.3%** |
+| char 3–5-grams | 109,725 | 126.7 M | 26.8 | 297.9% |
+
+**Stemming reduces the vocabulary by 41%.** About 1.7 word forms map to each stem, which shows how much of Kazakh vocabulary growth comes from inflection.
+
+### 6.4 Zipf's and Heaps' laws
+
+| Corpus slice | Zipf *s* | R² |
+|---|---|---|
+| all word forms | 1.75 | 0.987 |
+| all stems | 1.91 | 0.981 |
+| 1990s | 1.27 | 0.992 |
+| 2000s | 1.43 | 0.990 |
+| 2010s | 1.67 | 0.987 |
+| 2020s | 1.65 | 0.985 |
+
+- **The fit is good but steep.** The distribution follows a power law closely (R² ≥ 0.98), but *s* is well above the classic 1.0. Titles and descriptions are short and formulaic, so a few legal terms take a very large share of tokens.
+- **The exponent rises across decades.** Legal language became more standardised over time, as template acts by local councils grew in number.
+- **Heaps' law:** V = 143·N^0.355. The vocabulary grows slowly, which is typical of a controlled register.
+- **Top bigrams:** *қазақстан республикасы*, *аудандық мәслихатының*, *күші жойылды* ("repealed"), *мәслихатының шешімі* ("decision of the council"), *әділет департаментінде* ("at the justice department").
+- **Decade shifts:** the rising and new terms are dominated by district names (local council acts) and, in the 2020s, urban-planning terms (*қасбеттерін* "facades", *сәулеттік* "architectural", *пикеттеуді* "picketing"). Older abbreviations and Russian-style terms decline (*кабинет*, *рыногын*, *контракт*).
+
+### 6.5 Method comparison
+Split: train 107,441 acts (≤ 2017), test 90,597 acts (≥ 2018). 17,280 test acts were dropped because their title also appears in train. 33 sections.
+
+| Model | F1-macro | Accuracy | Fit time | Predict time | Peak memory (fit) | Features |
+|---|---|---|---|---|---|---|
+| baseline_majority | 0.017 | 0.388 | 0.1 s | 0.0 s | 4 MB | – |
+| baseline_wordform_tfidf | 0.573 | 0.765 | 34 s | 6 s | 59 MB | 18,812 |
+| stem_tfidf | 0.572 | 0.762 | 32 s | 7 s | 51 MB | 10,916 |
+| **char_ngram_tfidf** | **0.582** | **0.765** | 251 s | 181 s | 1,029 MB | 55,097 |
+
+- **Char n-grams win, narrowly.** They have the best F1-macro (+0.9 pt over word forms), but cost 7× the training time and 17× the memory.
+- **Stemming matches word forms with fewer features.** It reaches the same quality with 42% fewer features and less memory, so it is the most efficient choice.
+- **Recommendation:** use char n-grams when quality matters most, and stems when resources are limited.
+
+### 6.6 Error analysis (char n-gram model)
+- The error rate is **23.5%**. Most errors come from the broad section *Конституциялық құрылыс және мемлекеттік басқару* (constitutional order and public administration), which is confused with Finance, Labour and Security. Its acts cover every topic.
+- Very short texts (6–10 tokens) fail **75%** of the time. Long texts (40+ tokens) also fail more often (30% vs 18–21%), because they mix several subjects.
+- The word-form and char models disagree on only about 4% of test acts (1,756 vs 1,810 won by each), so the two representations make similar errors.
+
+### 6.7 Limitations
+- The corpus contains only titles and short descriptions, not full act texts.
+- Almost no data before 1990, so the "decades" are effectively 1990s–2020s.
+- The stemmer is rule-based, so it sometimes over-stems (it merges *министрлік* and *министр*) and does not handle vowel harmony exceptions.
+- The temporal split also shifts the class distribution between train and test, which lowers F1-macro for sections that are rare after 2018.
 
 ---
 
@@ -242,7 +310,7 @@ All numbers come from `reports/results/` and all plots from `reports/figures/`.
 - [x] Source code in this GitHub repository
 - [x] `requirements.txt` with pinned versions
 - [x] Link to the data source (Hugging Face)
-- [ ] Meaningful commit history
+- [x] Meaningful commit history
 - [ ] Written report: data, methods, results with metric tables, limitations, conclusions, references
 - [ ] Presentation (`.pptx` / `.pdf`) uploaded to Moodle **2–3 days before the exam**
 - [ ] Each member's contribution stated in the report and the slides
