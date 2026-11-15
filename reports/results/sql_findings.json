@@ -1,0 +1,31 @@
+{
+  "acts_since_2010_pct": 82.5,
+  "acts_before_1990": 53,
+  "largest_growth_last_decade": {
+    "section": "Қаржы",
+    "change": 13267
+  },
+  "largest_decline_last_decade": {
+    "section": "Еңбек",
+    "change": -4461
+  },
+  "top_area": {
+    "area": "Нормативтік құқықтық актілер: дайындау, қабылдау, өзгерту, жариялау, түсіндіру, мемлекеттік есепке алу",
+    "share_by_decade_pct": {
+      "1990": 68.8,
+      "2000": 70.3,
+      "2010": 44.5,
+      "2020": 44.2
+    }
+  },
+  "most_repealed_form": {
+    "form": "Регламент",
+    "repealed_pct": 91.9,
+    "n_acts": 4161
+  },
+  "top_body": {
+    "body": "Қазақстан Республикасының Үкіметі",
+    "n_acts": 37807,
+    "share_pct": 17.5
+  }
+}

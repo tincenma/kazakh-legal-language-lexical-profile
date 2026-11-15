@@ -78,6 +78,9 @@ kazakh-legal-language-lexical-profile/
 
 ### 3.1 Loading large data (`data_loader.py`, requirement 11)
 - Reads the CSV with `pd.read_csv(chunksize=50_000)` and cleans placeholders chunk by chunk.
+- Cleans invalid values the audit found (`clean_values()`, logged in `cleaning_log.json`):
+  - section names that are bare numeric codes (`3700`, `3800`, 19 acts) become missing;
+  - repeated whitespace is collapsed in titles, descriptions and multi-valued fields.
 - Optimises dtypes: `datetime64` for dates, `boolean` for `t`/`f` flags, `category` for repeated metadata (body, section, form, region) and downcast integers.
 - Measures memory **before and after** (`memory_usage(deep=True)`) and compares **CSV vs Parquet** on file size, read time and RAM.
 - Results go to `reports/results/loading_benchmark.json` and `figures/01_loading_benchmark.png`.
@@ -110,6 +113,10 @@ The ER diagram is drawn to `docs/er_diagram.png`. `sql/queries.sql` holds **10 q
 | `text_length_by_section` | JOIN + scalar subquery |
 | `repealed_by_form` | JOIN + HAVING + `PERCENT_RANK()` |
 
+The SQL results feed the analysis directly:
+- five charts are drawn from the query DataFrames (`figures/15_sql_*` to `19_sql_*`);
+- `summarize_findings()` turns them into the key facts in `sql_findings.json`, which are used in section 6.3.
+
 ### 3.4 Kazakh text preprocessing (`preprocessing.py`)
 Kazakh is agglutinative: заң (law) → заңдар → заңдарының → заңдарынан. Three representations are compared:
 
@@ -125,6 +132,11 @@ Kazakh is agglutinative: заң (law) → заңдар → заңдарының 
 - **Decade comparison**: terms that rise, fall or first appear between consecutive decades (smoothed log ratio), word clouds per decade, and the history of any single term.
 
 Decades with fewer than 300 acts are left out of the comparisons.
+
+**Place-name filter.** Many acts are decisions of district councils, so village and district names would swamp the decade comparison.
+- `extract_toponyms()` finds capitalised words placed right before an administrative unit word (*Шиелі ауданы*, *Достық ауылдық округі*).
+- A candidate is kept only if the corpus almost never writes it in lower case. This keeps common words such as *еңбек* (labour) out of the list.
+- The resulting 2,091 place-name stems (`toponyms.txt`) are removed from the decade shifts, per-decade top words, bigrams and word clouds. Vocabulary and Zipf statistics use all words.
 
 ### 3.6 Method comparison (`models.py`, requirement 9 and cluster tasks)
 - **Task:** predict an act's `database_section` (its thematic section) from title + description.
@@ -248,9 +260,19 @@ All numbers come from `reports/results/` and all plots from `reports/figures/`.
 - **Only 53 acts were adopted before 1990.** Per decade: 1990s 9,455; 2000s 28,302; 2010s 91,706; 2020s 86,373. Decade comparisons therefore cover 1990–2020s.
 - Placeholders were still present despite the dataset card: for example `regulatory_body` has 93,272 `ЖОҚ`, and `gov_registration_number` has 54,826 `НЕТ` and 23,948 `undefined`.
 - `legal_relation_area` has 351 distinct tags. 152,674 acts have more than one (up to 12 per act).
-- Some `database_section` values are numeric codes (`3700`, `3800`) instead of names.
+- 19 acts had numeric codes (`3700`, `3800`) instead of a section name. They were set to missing.
+- Repeated whitespace was fixed in 2,789 titles, 2,500 descriptions and about 1,000 values of each multi-valued field.
 
-### 6.3 Vocabulary and the effect of stemming
+### 6.3 What the SQL queries show
+Taken from `sql_findings.json` and the `sql_*` charts:
+- **The corpus is recent.** 82.5% of all acts date from 2010 or later. The 2020s (2020–2026, still incomplete) already have almost as many acts as the whole 2010s.
+- **Finance grows fastest.** The *Қаржы* (finance) section added 13,267 acts in the 2020s compared with the 2010s, even though the decade is not over. *Еңбек* (labour) has 4,461 fewer acts so far (`15_sql_section_growth.png`).
+- **Regulation shifts toward budget and finance.** The general area "normative legal acts: drafting, adoption, amendment…" fell from 69–70% of area links in the 1990s–2000s to 44% in the 2010s–2020s, while state budget and finance areas grew (`16_sql_area_share.png`).
+- **The Government is the largest single author,** with 37,807 acts (17.5%) (`18_sql_top_bodies.png`).
+- **Technical documents are replaced most often.** *Регламент* (procedural regulation) has the highest repeal rate (91.9% of 4,161), followed by specifications, standards and instructions (`17_sql_repealed_by_form.png`).
+- **Text length differs by section.** Social security, health and education acts have the longest texts (`19_sql_text_length_by_section.png`), which matters for the error analysis in section 6.7.
+
+### 6.4 Vocabulary and the effect of stemming
 
 | Representation | Types | Tokens | Hapax % | Types vs word forms |
 |---|---|---|---|---|
@@ -261,7 +283,7 @@ All numbers come from `reports/results/` and all plots from `reports/figures/`.
 
 **Stemming reduces the vocabulary by 41%.** About 1.7 word forms map to each stem, which shows how much of Kazakh vocabulary growth comes from inflection.
 
-### 6.4 Zipf's and Heaps' laws
+### 6.5 Zipf's and Heaps' laws
 
 | Corpus slice | Zipf *s* | R² |
 |---|---|---|
@@ -276,29 +298,42 @@ All numbers come from `reports/results/` and all plots from `reports/figures/`.
 - **The exponent rises across decades.** Legal language became more standardised over time, as template acts by local councils grew in number.
 - **Heaps' law:** V = 143·N^0.355. The vocabulary grows slowly, which is typical of a controlled register.
 - **Top bigrams:** *қазақстан республикасы*, *аудандық мәслихатының*, *күші жойылды* ("repealed"), *мәслихатының шешімі* ("decision of the council"), *әділет департаментінде* ("at the justice department").
-- **Decade shifts:** the rising and new terms are dominated by district names (local council acts) and, in the 2020s, urban-planning terms (*қасбеттерін* "facades", *сәулеттік* "architectural", *пикеттеуді* "picketing"). Older abbreviations and Russian-style terms decline (*кабинет*, *рыногын*, *контракт*).
+- **Place names grow sharply.** They make up 0.7% of content words in the 1990s, 3.7% in the 2000s, 9.1% in the 2010s and 10.5% in the 2020s. This confirms that district and village councils became a major source of legal acts, which also explains the rising Zipf exponent.
 
-### 6.5 Method comparison
+**Decade shifts after removing place names** (`reports/results/lexical_profile.json`):
+
+| Period | Rising / new terms | Falling terms |
+|---|---|---|
+| 1990s → 2000s | *кесімдерді* (acts), *тізіліміне* (to the register), *заңнамалық* (legislative), *ратификациялау* (ratification), *паспорттарын*, *өңірлік* (regional) | Soviet-era abbreviations (*ҚРҮ*, *ҚРМК*), *кабинет* (Cabinet of Ministers), *контракт*, *борыштар* (debts) |
+| 2000s → 2010s | *пробация* (probation), *одақтың* (Eurasian Union), *регламенттерін* (regulations), *жайылымдарды* (pastures), *қауымдық* (community) | *рыногын* (Russian-style "market"), *абоненттеріне*, *борышкерлермен* (debtors) |
+| 2010s → 2020s | *қасбеттерін* (facades), *шатырларын* (roofs), *сәулеттік* (architectural), *келбет* (appearance), *пикеттеуді* (picketing), *сұрыптауға* (waste sorting), *жарна* (contribution) | *департаментінің*, *басқармасында*, *хаты* (letter), *интернаттық* (boarding school) |
+
+The vocabulary moves from Soviet administrative terms toward registration and ratification (2000s), probation, Eurasian integration and procedural regulations (2010s), and urban-environment, assembly and social-contribution terms (2020s).
+
+### 6.6 Method comparison
 Split: train 107,441 acts (≤ 2017), test 90,597 acts (≥ 2018). 17,280 test acts were dropped because their title also appears in train. 33 sections.
 
 | Model | F1-macro | Accuracy | Fit time | Predict time | Peak memory (fit) | Features |
 |---|---|---|---|---|---|---|
 | baseline_majority | 0.017 | 0.388 | 0.1 s | 0.0 s | 4 MB | – |
-| baseline_wordform_tfidf | 0.573 | 0.765 | 34 s | 6 s | 59 MB | 18,812 |
-| stem_tfidf | 0.572 | 0.762 | 32 s | 7 s | 51 MB | 10,916 |
-| **char_ngram_tfidf** | **0.582** | **0.765** | 251 s | 181 s | 1,029 MB | 55,097 |
+| baseline_wordform_tfidf | 0.573 | 0.765 | 63 s | 7 s | 59 MB | 18,812 |
+| stem_tfidf | 0.572 | 0.762 | 31 s | 7 s | 51 MB | 10,916 |
+| **char_ngram_tfidf** | **0.582** | **0.765** | 244 s | 177 s | 1,029 MB | 55,097 |
 
-- **Char n-grams win, narrowly.** They have the best F1-macro (+0.9 pt over word forms), but cost 7× the training time and 17× the memory.
+Times are wall-clock times from one run and vary between runs (the word-form model took 34 s in an earlier run). Memory and quality are stable.
+
+- **Char n-grams win, narrowly.** They have the best F1-macro (+0.9 pt over word forms), but cost 4–8× the training time, about 25× the prediction time and 17× the memory.
 - **Stemming matches word forms with fewer features.** It reaches the same quality with 42% fewer features and less memory, so it is the most efficient choice.
 - **Recommendation:** use char n-grams when quality matters most, and stems when resources are limited.
 
-### 6.6 Error analysis (char n-gram model)
+### 6.7 Error analysis (char n-gram model)
 - The error rate is **23.5%**. Most errors come from the broad section *Конституциялық құрылыс және мемлекеттік басқару* (constitutional order and public administration), which is confused with Finance, Labour and Security. Its acts cover every topic.
 - Very short texts (6–10 tokens) fail **75%** of the time. Long texts (40+ tokens) also fail more often (30% vs 18–21%), because they mix several subjects.
 - The word-form and char models disagree on only about 4% of test acts (1,756 vs 1,810 won by each), so the two representations make similar errors.
 
-### 6.7 Limitations
+### 6.8 Limitations
 - The corpus contains only titles and short descriptions, not full act texts.
+- The place-name filter is heuristic. A village named after a common word that the corpus also writes in lower case (for example *Еңбек*) is kept as a normal word.
 - Almost no data before 1990, so the "decades" are effectively 1990s–2020s.
 - The stemmer is rule-based, so it sometimes over-stems (it merges *министрлік* and *министр*) and does not handle vowel harmony exceptions.
 - The temporal split also shifts the class distribution between train and test, which lowers F1-macro for sections that are rare after 2018.

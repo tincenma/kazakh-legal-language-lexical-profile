@@ -1,5 +1,5 @@
 model,fit_time_s,fit_peak_mem_mb,predict_time_s,predict_peak_mem_mb,f1_macro,f1_weighted,accuracy,n_features
-baseline_majority,0.078,4.21,0.001,1.73,0.017,0.2173,0.3884,0
-baseline_wordform_tfidf,33.791,58.7,6.251,68.4,0.5728,0.7634,0.7646,18812
-stem_tfidf,31.849,51.17,6.648,66.67,0.5721,0.7609,0.762,10916
-char_ngram_tfidf,251.219,1029.44,180.88,718.61,0.5821,0.7638,0.7652,55097
+baseline_majority,0.087,4.21,0.001,1.73,0.017,0.2173,0.3884,0
+baseline_wordform_tfidf,62.933,58.69,6.58,68.4,0.5728,0.7634,0.7646,18812
+stem_tfidf,31.444,51.17,6.59,66.67,0.5721,0.7609,0.762,10916
+char_ngram_tfidf,244.246,1029.44,177.329,718.61,0.5821,0.7638,0.7652,55097

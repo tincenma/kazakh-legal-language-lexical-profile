@@ -1,0 +1,10 @@
+{
+  "database_section_numeric_codes": {
+    "3700": 11,
+    "3800": 8
+  },
+  "legal_relation_area_whitespace_fixed": 1090,
+  "act_form_whitespace_fixed": 1053,
+  "title_whitespace_fixed": 2789,
+  "description_whitespace_fixed": 2500
+}

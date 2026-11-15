@@ -2,12 +2,12 @@
   "rows": 215889,
   "columns": 28,
   "memory_object_dtypes_mb": 617.12,
-  "memory_optimized_mb": 355.05,
+  "memory_optimized_mb": 355.04,
   "memory_reduction_pct": 42.5,
-  "csv_read_time_s": 3.58,
+  "csv_read_time_s": 4.17,
   "csv_naive_memory_mb": 606.17,
   "csv_file_mb": 321.16,
-  "parquet_read_time_s": 1.32,
-  "parquet_memory_mb": 512.06,
-  "parquet_file_mb": 63.29
+  "parquet_read_time_s": 1.07,
+  "parquet_memory_mb": 512.03,
+  "parquet_file_mb": 63.23
 }
