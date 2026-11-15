@@ -1,7 +1,7 @@
 # Lexical Profile of Kazakh Legal Language
 
-Final project for **Programming for Data Analysis and Database**
-(MSc *Applied Artificial Intelligence*, group **AAI-2605**). Cluster 3: Kazakh Legal Data Analytics, topic #17.
+Final project for **Programming for AI**, School of Artificial Intelligence and Data Science, Astana IT University
+(educational program *Applied Artificial Intelligence*, group **AAI-2605M**). Cluster 3: Kazakh Legal Data Analytics, topic #17.
 
 > **Goal:** study the vocabulary, n-grams and terminology of Kazakh legal texts and how they change across decades.
 > **Focus:** Zipf's law, how stemming changes vocabulary size, and a decade-by-decade comparison.
@@ -10,9 +10,9 @@ Final project for **Programming for Data Analysis and Database**
 
 | Member | Responsibilities |
 |---|---|
-| Adylbekova Zhanel | _TBD_ |
-| Amazholova Dilnaz | _TBD_ |
-| Ilyassov Temirlan | _TBD_ |
+| Ilyassov Temirlan | Architecture, data loading and cleaning, metadata audit, lexical analysis (Zipf, Heaps, decades), report |
+| Amazholova Dilnaz | Kazakh preprocessing and stemmer, char n-grams, leakage-free split, classification experiments, error analysis |
+| Adylbekova Zhanel | SQLite schema and ER diagram, SQL queries, console interface, visualization, testing |
 
 > Each member's contribution must also be stated in the report and the presentation.
 
@@ -249,11 +249,15 @@ All numbers come from `reports/results/` and all plots from `reports/figures/`.
 
 ### 6.1 Loading and storage
 
-| | CSV (object dtypes) | Optimised dtypes | Parquet |
-|---|---|---|---|
-| File size | 321 MB | – | **63 MB** |
-| Read time | 3.6 s | – | **1.3 s** |
-| DataFrame memory | 617 MB | **355 MB (−42.5%)** | – |
+| Measure | CSV | Parquet |
+|---|---|---|
+| File size on disk | 321 MB | **63 MB** |
+| Full read time | 4.2 s | **1.1 s** |
+| Memory after reading | 606 MB | 512 MB* |
+
+\*The Parquet file also stores the derived `text`, `year` and `decade` columns (28 columns instead of 25).
+
+Optimizing the data types of the same 25 columns shrinks the in-memory frame from **617 MB** (every column as text) to **355 MB (−42.5%)**. Read times come from one run; two full runs differed by up to 20%.
 
 ### 6.2 Data audit
 - `law_id` has no duplicates, but **53,916 titles are duplicates**, mostly boilerplate.
