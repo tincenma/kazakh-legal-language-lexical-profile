@@ -1,0 +1,19 @@
+# data (too large for git; download with menu item 1)
+data/raw/
+data/processed/
+
+# generated outputs (re-created by the pipeline)
+reports/results/*.parquet
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
