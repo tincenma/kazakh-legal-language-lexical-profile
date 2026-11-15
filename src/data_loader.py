@@ -1,4 +1,4 @@
-"""Downloading, chunked CSV loading, dtype optimisation and CSV vs Parquet benchmark."""
+"""Downloading, chunked CSV loading, dtype optimization and CSV vs Parquet benchmark."""
 import time
 import urllib.request
 from pathlib import Path
@@ -104,7 +104,8 @@ def benchmark_formats(df: pd.DataFrame, csv_path: Path = config.CSV_PATH,
     results = {}
 
     start = time.perf_counter()
-    naive = pd.read_csv(csv_path, nrows=nrows, low_memory=False)   # default pandas behaviour, all object
+    # plain read without dtype hints: pandas infers the types (low_memory=False reads in one pass)
+    naive = pd.read_csv(csv_path, nrows=nrows, low_memory=False)
     results["csv_read_time_s"] = round(time.perf_counter() - start, 2)
     results["csv_naive_memory_mb"] = df_memory_mb(naive)
     results["csv_file_mb"] = file_size_mb(csv_path)
@@ -120,7 +121,7 @@ def benchmark_formats(df: pd.DataFrame, csv_path: Path = config.CSV_PATH,
 
 
 def load_and_convert(nrows: int | None = None) -> pd.DataFrame:
-    """Full step 1: read chunks, optimise dtypes, save Parquet, record the measurements."""
+    """Full step 1: read chunks, optimize dtypes, save Parquet, record the measurements."""
     config.ensure_dirs()
     if not config.CSV_PATH.exists():
         download_csv()

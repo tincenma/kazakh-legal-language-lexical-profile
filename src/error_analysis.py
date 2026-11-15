@@ -49,7 +49,7 @@ def run_error_analysis(model: str | None = None, n_examples: int = 20) -> dict:
     viz.plot_error_by_group(by_length, "error_rate", "Error rate by text length (tokens)", "13_errors_by_length")
     viz.plot_error_by_group(by_year, "error_rate", "Error rate by year of adoption (test set)", "14_errors_by_year")
 
-    # where do the methods disagree? acts that only the char model gets right show morphology at work
+    # sample of misclassified acts, and how often the word-form and char n-gram models disagree
     examples = df[df["label"] != df[pred_col]].sample(min(n_examples, (df["label"] != df[pred_col]).sum()),
                                                      random_state=config.RANDOM_STATE)
     examples[["law_id", "title", "label", pred_col]].to_csv(config.RESULTS_DIR / "error_examples.csv", index=False)

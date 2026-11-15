@@ -1,4 +1,4 @@
-"""Normalised SQLite database: building, loading and running the analytical queries."""
+"""Normalized SQLite database: building, loading and running the analytical queries."""
 import re
 import sqlite3
 from pathlib import Path

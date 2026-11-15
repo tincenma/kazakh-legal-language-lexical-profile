@@ -1,4 +1,4 @@
-"""Kazakh text preprocessing: tokenisation, stop words, suffix stemming, character n-grams.
+"""Kazakh text preprocessing: tokenization, stop words, suffix stemming, character n-grams.
 
 Kazakh is agglutinative: one stem takes chains of suffixes (plural + possessive + case),
 e.g. заң "law" -> заңдар -> заңдарының -> заңдарынан. We compare three representations:

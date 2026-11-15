@@ -16,7 +16,7 @@ for stream in (sys.stdout, sys.stdin):          # Kazakh letters in the Windows 
         stream.reconfigure(encoding="utf-8")
 
 MENU = {
-    "1": "Load data (CSV -> Parquet, dtype optimisation)",
+    "1": "Load data (CSV -> Parquet, dtype optimization)",
     "2": "Metadata audit",
     "3": "Build / refresh SQLite database",
     "4": "Run SQL analytics",

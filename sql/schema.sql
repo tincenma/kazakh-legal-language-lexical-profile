@@ -1,4 +1,4 @@
--- Normalised schema for KazakhLawCorpus-clean (SQLite)
+-- Normalized schema for KazakhLawCorpus-clean (SQLite)
 -- acts N:1 bodies, acts N:M areas (via act_areas), acts N:M forms (via act_forms), acts N:1 sections
 
 PRAGMA foreign_keys = ON;

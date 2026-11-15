@@ -17,7 +17,7 @@ PROFILE_PATH = config.RESULTS_DIR / "lexical_profile.json"
 TERM_DECADE_PATH = config.RESULTS_DIR / "term_by_decade.parquet"
 
 
-# A capitalised word right before an administrative unit word is a place name:
+# A capitalized word right before an administrative unit word is a place name:
 # "Нұра ауданының мәслихаты", "Шиелі кенті", "Достық ауылдық округі".
 ADMIN_UNITS = r"(?:аудан|облыс|қала|кент|ауыл|село|округ)\w*"
 TOPONYM_RE = re.compile(rf"\b([А-ЯЁӘҒҚҢӨҰҮҺІ][{KAZAKH_LETTERS}]+(?:-[{KAZAKH_LETTERS}]+)?)\s+{ADMIN_UNITS}")
@@ -29,7 +29,7 @@ def extract_toponyms(df: pd.DataFrame, min_count: int = 3) -> set[str]:
     """Place names (stems) found in titles, descriptions, adopting bodies and place of adoption.
 
     Some villages are named after common words ("Еңбек ауылдық округі" - "labour"), so a
-    candidate is kept only if the corpus almost always writes it capitalised.
+    candidate is kept only if the corpus almost always writes it capitalized.
     """
     counts = Counter()
     for col in ["title", "description", "adopting_body", "place_of_adoption"]:
@@ -45,12 +45,12 @@ def extract_toponyms(df: pd.DataFrame, min_count: int = 3) -> set[str]:
     for text in df["text"].dropna():
         for i, w in enumerate(word_re.findall(text)):
             if i == 0:
-                continue                       # sentence start is always capitalised
+                continue                       # sentence start is always capitalized
             s = stem(w.lower())
             if s in candidates:
                 (upper if w[0].isupper() else lower)[s] += 1
-    # Institution names are capitalised too ("Еңбек ... министрлігі"), so a real place name must
-    # almost never appear in lower case: at most 1 lower-case use per 10 capitalised ones.
+    # Institution names are capitalized too ("Еңбек ... министрлігі"), so a real place name must
+    # almost never appear in lower case: at most 1 lower-case use per 10 capitalized ones.
     toponyms = {t for t in candidates if lower[t] <= 0.1 * upper[t]}
     TOPONYMS_PATH.write_text("\n".join(sorted(toponyms)), encoding="utf-8")
     return toponyms

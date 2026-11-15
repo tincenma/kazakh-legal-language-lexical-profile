@@ -39,7 +39,7 @@ def _save(fig, name: str) -> Path:
 
 def plot_loading_benchmark(bench: dict) -> Path:
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8))
-    axes[0].bar(["object dtypes", "optimised"], [bench["memory_object_dtypes_mb"], bench["memory_optimized_mb"]],
+    axes[0].bar(["object dtypes", "optimized"], [bench["memory_object_dtypes_mb"], bench["memory_optimized_mb"]],
                 color=["#999999", "#2a6f97"])
     axes[0].set(title="DataFrame memory", ylabel="MB")
     axes[1].bar(["CSV", "Parquet"], [bench["csv_file_mb"], bench["parquet_file_mb"]], color=["#999999", "#2a6f97"])

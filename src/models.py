@@ -28,16 +28,16 @@ PREDICTIONS_PATH = config.RESULTS_DIR / "test_predictions.parquet"
 
 
 def normalize_title(title: str) -> str:
-    """Title key for duplicate detection: lower case, no digits, numbers or punctuation."""
+    """Title key for duplicate detection: lower case, without digits, № signs or punctuation."""
     if not isinstance(title, str):
         return ""
-    title = re.sub(r"[\d№N]+", " ", title.lower())
+    title = re.sub(r"[\d№]+", " ", title.lower())
     title = re.sub(r"[^\w\s]", " ", title)
     return re.sub(r"\s+", " ", title).strip()
 
 
 def leakage_free_split(df: pd.DataFrame, split_year: int = config.SPLIT_YEAR) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Temporal split + removal of test acts whose (normalised) title also occurs in train.
+    """Temporal split + removal of test acts whose (normalized) title also occurs in train.
 
     Many acts share boilerplate titles ("... күшін жою туралы" = "on repealing ..."). Without
     the title filter the model would just memorise titles it has already seen.
