@@ -14,8 +14,6 @@ Final project for **Programming for AI**, School of Artificial Intelligence and 
 | Amazholova Dilnaz | Kazakh preprocessing and stemmer, char n-grams, leakage-free split, classification experiments, error analysis |
 | Adylbekova Zhanel | SQLite schema and ER diagram, SQL queries, console interface, visualization, testing |
 
-> Each member's contribution must also be stated in the report and the presentation.
-
 ---
 
 ## 1. Dataset
@@ -50,10 +48,10 @@ kazakh-legal-language-lexical-profile/
 ├── src/
 │   ├── config.py            # paths and constants (pathlib, os)
 │   ├── utils.py             # JSON I/O, program state, time and memory measurement
-│   ├── data_loader.py       # download, chunked CSV reading, dtype optimisation, CSV vs Parquet
+│   ├── data_loader.py       # download, chunked CSV reading, dtype optimization, CSV vs Parquet
 │   ├── audit.py             # missing values, date formats, placeholders, multi-valued fields
-│   ├── database.py          # normalised SQLite schema, loading, SQL → pandas
-│   ├── preprocessing.py     # Kazakh tokeniser, stop words, suffix stemmer, char n-grams
+│   ├── database.py          # normalized SQLite schema, loading, SQL → pandas
+│   ├── preprocessing.py     # Kazakh tokenizer, stop words, suffix stemmer, char n-grams
 │   ├── lexical.py           # vocabulary sizes, Zipf/Heaps fits, n-grams, decade comparison
 │   ├── models.py            # baselines vs methods, leakage-free split, metrics
 │   ├── error_analysis.py    # confusions, errors by text length and year
@@ -81,7 +79,7 @@ kazakh-legal-language-lexical-profile/
 - Cleans invalid values the audit found (`clean_values()`, logged in `cleaning_log.json`):
   - section names that are bare numeric codes (`3700`, `3800`, 19 acts) become missing;
   - repeated whitespace is collapsed in titles, descriptions and multi-valued fields.
-- Optimises dtypes: `datetime64` for dates, `boolean` for `t`/`f` flags, `category` for repeated metadata (body, section, form, region) and downcast integers.
+- Optimizes dtypes: `datetime64` for dates, `boolean` for `t`/`f` flags, `category` for repeated metadata (body, section, form, region) and downcast integers.
 - Measures memory **before and after** (`memory_usage(deep=True)`) and compares **CSV vs Parquet** on file size, read time and RAM.
 - Results go to `reports/results/loading_benchmark.json` and `figures/01_loading_benchmark.png`.
 
@@ -134,13 +132,13 @@ Kazakh is agglutinative: заң (law) → заңдар → заңдарының 
 Decades with fewer than 300 acts are left out of the comparisons.
 
 **Place-name filter.** Many acts are decisions of district councils, so village and district names would swamp the decade comparison.
-- `extract_toponyms()` finds capitalised words placed right before an administrative unit word (*Шиелі ауданы*, *Достық ауылдық округі*).
+- `extract_toponyms()` finds capitalized words placed right before an administrative unit word (*Шиелі ауданы*, *Достық ауылдық округі*).
 - A candidate is kept only if the corpus almost never writes it in lower case. This keeps common words such as *еңбек* (labour) out of the list.
 - The resulting 2,091 place-name stems (`toponyms.txt`) are removed from the decade shifts, per-decade top words, bigrams and word clouds. Vocabulary and Zipf statistics use all words.
 
 ### 3.6 Method comparison (`models.py`, requirement 9 and cluster tasks)
 - **Task:** predict an act's `database_section` (its thematic section) from title + description.
-- **Leakage-free split:** acts adopted **before 2018 go to train** and **2018 onwards go to test**. Test acts whose normalised title also occurs in train are **removed**. Sections with fewer than 200 training acts are dropped.
+- **Leakage-free split:** acts adopted **before 2018 go to train** and **2018 onwards go to test**. Test acts whose normalized title also occurs in train are **removed**. Sections with fewer than 200 training acts are dropped.
 - **Models** (all except the majority baseline use the same `LinearSVC`, so differences come from the text representation):
 
 | Model | Role |
@@ -207,7 +205,7 @@ If the CSV is stored somewhere else (for example on Google Drive in Colab), set 
 
 ```
 ==== Kazakh Legal Lexical Profile ====
-1 – Load data (CSV -> Parquet, dtype optimisation)
+1 – Load data (CSV -> Parquet, dtype optimization)
 2 – Metadata audit
 3 – Build / refresh SQLite database
 4 – Run SQL analytics
@@ -224,7 +222,7 @@ Run the steps in order the first time. Completed steps are marked `[done]` (stor
 
 ---
 
-## 5. How the course requirements are met
+## 5. Technical overview
 
 | # | Requirement | Where |
 |---|---|---|
@@ -238,7 +236,7 @@ Run the steps in order the first time. Completed steps are marked `[done]` (stor
 | 8 | Modularity | `src/` package; `os`, `pathlib`, `datetime`, `json`, `time`, `re`, `sqlite3`, `argparse` |
 | 9 | Approach comparison | 2 baselines vs stems vs char n-grams (quality, time, memory); CSV vs Parquet |
 | 10 | DB and SQL | SQLite, 7 tables, ER diagram, 10 queries with JOIN, HAVING, subqueries, CTEs and windows |
-| 11 | Data volume | 337 MB / 216k rows, chunksize, dtype optimisation, Parquet |
+| 11 | Data volume | 337 MB / 216k rows, chunksize, dtype optimization, Parquet |
 
 ---
 
@@ -299,7 +297,7 @@ Taken from `sql_findings.json` and the `sql_*` charts:
 | 2020s | 1.65 | 0.985 |
 
 - **The fit is good but steep.** The distribution follows a power law closely (R² ≥ 0.98), but *s* is well above the classic 1.0. Titles and descriptions are short and formulaic, so a few legal terms take a very large share of tokens.
-- **The exponent rises across decades.** Legal language became more standardised over time, as template acts by local councils grew in number.
+- **The exponent rises across decades.** Legal language became more standardized over time, as template acts by local councils grew in number.
 - **Heaps' law:** V = 143·N^0.355. The vocabulary grows slowly, which is typical of a controlled register.
 - **Top bigrams:** *қазақстан республикасы*, *аудандық мәслихатының*, *күші жойылды* ("repealed"), *мәслихатының шешімі* ("decision of the council"), *әділет департаментінде* ("at the justice department").
 - **Place names grow sharply.** They make up 0.7% of content words in the 1990s, 3.7% in the 2000s, 9.1% in the 2010s and 10.5% in the 2020s. This confirms that district and village councils became a major source of legal acts, which also explains the rising Zipf exponent.
@@ -324,7 +322,7 @@ Split: train 107,441 acts (≤ 2017), test 90,597 acts (≥ 2018). 17,280 test a
 | stem_tfidf | 0.572 | 0.762 | 31 s | 7 s | 51 MB | 10,916 |
 | **char_ngram_tfidf** | **0.582** | **0.765** | 244 s | 177 s | 1,029 MB | 55,097 |
 
-Times are wall-clock times from one run and vary between runs (the word-form model took 34 s in an earlier run). Memory and quality are stable.
+Times are wall-clock times from one run and vary between runs; memory and quality are stable.
 
 - **Char n-grams win, narrowly.** They have the best F1-macro (+0.9 pt over word forms), but cost 4–8× the training time, about 25× the prediction time and 17× the memory.
 - **Stemming matches word forms with fewer features.** It reaches the same quality with 42% fewer features and less memory, so it is the most efficient choice.
@@ -344,17 +342,7 @@ Times are wall-clock times from one run and vary between runs (the word-form mod
 
 ---
 
-## 7. Deliverables
-
-- [x] Source code in this GitHub repository
-- [x] `requirements.txt` with pinned versions
-- [x] Link to the data source (Hugging Face)
-- [x] Meaningful commit history
-- [ ] Written report: data, methods, results with metric tables, limitations, conclusions, references
-- [ ] Presentation (`.pptx` / `.pdf`) uploaded to Moodle **2–3 days before the exam**
-- [ ] Each member's contribution stated in the report and the slides
-
-## 8. References
+## 7. References
 
 - Tleubayeva A. *KazakhLawCorpus-clean*, Hugging Face Datasets.
 - Zipf G. K. *Human Behavior and the Principle of Least Effort*, 1949.
