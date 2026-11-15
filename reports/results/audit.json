@@ -1,0 +1,351 @@
+{
+  "rows": 215889,
+  "duplicate_law_id": 0,
+  "duplicate_titles": 53916,
+  "short_generic_titles": {
+    "Қауымдық сервитут белгілеу туралы": 667,
+    "Шектеу іс-шараларын белгілеу туралы": 588,
+    "Қазақстан Республикасы Үкіметінің резервінен қаражат бөлу туралы": 410,
+    "Қазақстан Республикасы Үкіметінің кейбір шешімдерінің күші жойылды деп тану туралы": 386,
+    "Қазақстан Республикасы Үкіметінің кейбір шешімдеріне өзгерістер мен толықтырулар енгізу туралы": 189,
+    "Көшелерге атау беру туралы": 185,
+    "Жер учаскесіне қауымдық сервитут белгілеу туралы": 179,
+    "Қазақстан Республикасы Үкіметінің кейбір шешімдеріне өзгерістер енгізу туралы": 172,
+    "Әлеуметтік көмек көрсетудің, оның мөлшерлерін белгілеудің және мұқтаж азаматтардың жекелеген санаттарының тізбесін айқындаудың қағидаларын бекіту туралы": 166,
+    "Сайлау учаскелерін құру туралы": 166
+  },
+  "year_range": [
+    1947,
+    2026
+  ],
+  "acts_per_decade": {
+    "1940": 2,
+    "1950": 1,
+    "1960": 4,
+    "1970": 6,
+    "1980": 40,
+    "1990": 9455,
+    "2000": 28302,
+    "2010": 91706,
+    "2020": 86373
+  },
+  "missing": {
+    "date_published": {
+      "missing": 190769,
+      "missing_pct": 88.36
+    },
+    "ministry_registration_date": {
+      "missing": 186994,
+      "missing_pct": 86.62
+    },
+    "developer_body": {
+      "missing": 152176,
+      "missing_pct": 70.49
+    },
+    "date_modified": {
+      "missing": 106980,
+      "missing_pct": 49.55
+    },
+    "gov_registration_number": {
+      "missing": 103900,
+      "missing_pct": 48.13
+    },
+    "regulatory_body": {
+      "missing": 93291,
+      "missing_pct": 43.21
+    },
+    "official_publication_info": {
+      "missing": 41607,
+      "missing_pct": 19.27
+    },
+    "ekb_url": {
+      "missing": 33742,
+      "missing_pct": 15.63
+    },
+    "state_registry_number": {
+      "missing": 30868,
+      "missing_pct": 14.3
+    },
+    "adilet_url": {
+      "missing": 794,
+      "missing_pct": 0.37
+    },
+    "law_registry_number": {
+      "missing": 446,
+      "missing_pct": 0.21
+    },
+    "legal_relation_area": {
+      "missing": 380,
+      "missing_pct": 0.18
+    },
+    "database_section": {
+      "missing": 240,
+      "missing_pct": 0.11
+    },
+    "place_of_adoption": {
+      "missing": 156,
+      "missing_pct": 0.07
+    },
+    "legal_force": {
+      "missing": 80,
+      "missing_pct": 0.04
+    },
+    "adopting_body": {
+      "missing": 70,
+      "missing_pct": 0.03
+    },
+    "act_form": {
+      "missing": 63,
+      "missing_pct": 0.03
+    },
+    "region": {
+      "missing": 24,
+      "missing_pct": 0.01
+    },
+    "source_id": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "date_adopted": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "is_repealed": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "is_archive": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "law_id": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "description": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "title": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "year": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "decade": {
+      "missing": 0,
+      "missing_pct": 0.0
+    },
+    "text": {
+      "missing": 0,
+      "missing_pct": 0.0
+    }
+  },
+  "date_formats": {
+    "date_adopted": {
+      "null": 0,
+      "iso_yyyy_mm_dd": 215889,
+      "other_format": 0,
+      "other_examples": []
+    },
+    "date_modified": {
+      "null": 106980,
+      "iso_yyyy_mm_dd": 108909,
+      "other_format": 0,
+      "other_examples": []
+    },
+    "date_published": {
+      "null": 190769,
+      "iso_yyyy_mm_dd": 25120,
+      "other_format": 0,
+      "other_examples": []
+    },
+    "ministry_registration_date": {
+      "null": 186994,
+      "iso_yyyy_mm_dd": 28895,
+      "other_format": 0,
+      "other_examples": []
+    }
+  },
+  "placeholders": {
+    "law_registry_number": {
+      "ЖОҚ": 434,
+      "НЕТ": 11,
+      "нет": 1
+    },
+    "gov_registration_number": {
+      "НЕТ": 54826,
+      "undefined": 23948
+    },
+    "official_publication_info": {
+      "ЖОҚ": 40656
+    },
+    "legal_relation_area": {
+      "ЖОҚ": 75
+    },
+    "legal_force": {
+      "ЖОҚ": 2
+    },
+    "adopting_body": {
+      "ЖОҚ": 42
+    },
+    "regulatory_body": {
+      "ЖОҚ": 93272
+    },
+    "developer_body": {
+      "ЖОҚ": 3335,
+      "НЕТ": 486
+    },
+    "place_of_adoption": {
+      "ЖОҚ": 137
+    },
+    "database_section": {
+      "ЖОҚ": 106
+    },
+    "act_form": {
+      "ЖОҚ": 2
+    }
+  },
+  "multi_value": {
+    "legal_relation_area": {
+      "acts_with_values": 215509,
+      "acts_with_multiple_values": 152674,
+      "max_values_per_act": 12,
+      "mean_values_per_act": 1.99,
+      "unique_values": 351,
+      "top_values": [
+        [
+          "Нормативтік құқықтық актілер: дайындау, қабылдау, өзгерту, жариялау, түсіндіру, мемлекеттік есепке алу",
+          107670
+        ],
+        [
+          "Қазақстан Республикасының мемлекеттік бюджеті. Жергілікті бюджеттер",
+          52353
+        ],
+        [
+          "Қаржы",
+          14549
+        ],
+        [
+          "Жергілікті өкілетті және атқарушы органдар",
+          13000
+        ],
+        [
+          "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+          9449
+        ],
+        [
+          "Әлеуметтік қамсыздандыру. Сақтандыру",
+          7764
+        ],
+        [
+          "Өтемақылар және өзге әлеуметтік төлемдер",
+          7303
+        ],
+        [
+          "Халықты жұмысқа орналастыру және жұмыспен қамту",
+          6702
+        ],
+        [
+          "Республикалық және жергілікті бюджеттердің кірістері. Салықтар",
+          5752
+        ],
+        [
+          "Мемлекеттік қызметтер. Мемлекеттік қызметтер көрсетудің стандарттары",
+          5735
+        ],
+        [
+          "Халықаралық шарттар, келісімдер және конвенциялар",
+          5678
+        ],
+        [
+          "Ауыл шаруашылығы",
+          5349
+        ],
+        [
+          "Мемлекеттік басқарудың өзге мәселелері",
+          4845
+        ],
+        [
+          "Республикалық және жергілікті бюджеттердің шығыстары",
+          4103
+        ],
+        [
+          "Мемлекеттік қызмет",
+          4066
+        ]
+      ]
+    },
+    "act_form": {
+      "acts_with_values": 215826,
+      "acts_with_multiple_values": 91890,
+      "max_values_per_act": 7,
+      "mean_values_per_act": 1.48,
+      "unique_values": 75,
+      "top_values": [
+        [
+          "Шешім",
+          95110
+        ],
+        [
+          "Қаулы",
+          77986
+        ],
+        [
+          "Өзгерту",
+          52174
+        ],
+        [
+          "Бұйрық",
+          30351
+        ],
+        [
+          "Қағида",
+          11293
+        ],
+        [
+          "Толықтыру",
+          10674
+        ],
+        [
+          "Өкім",
+          4625
+        ],
+        [
+          "Ереже",
+          4322
+        ],
+        [
+          "Жоба",
+          4304
+        ],
+        [
+          "Регламент",
+          4161
+        ],
+        [
+          "Жарлық",
+          4154
+        ],
+        [
+          "Заң",
+          3445
+        ],
+        [
+          "Тізбе",
+          3007
+        ],
+        [
+          "Келісім",
+          2029
+        ],
+        [
+          "Әдістеме",
+          1891
+        ]
+      ]
+    }
+  }
+}
