@@ -5,6 +5,7 @@
     python main.py --run-all --nrows 20000   quick run on the first 20k rows
 """
 import argparse
+import sqlite3
 import sys
 
 from src import config
@@ -23,7 +24,7 @@ MENU = {
     "5": "Lexical profile (vocabulary, Zipf, n-grams)",
     "6": "Decade comparison",
     "7": "Train & compare models (baseline vs methods)",
-    "8": "Analyse a text / query",
+    "8": "Analyze a text / query",
     "9": "Error analysis",
     "0": "Exit",
 }
@@ -120,7 +121,11 @@ def step_analyze_text():
     from src.preprocessing import preprocess
 
     while True:
-        text = input("\nEnter a Kazakh text or a single word (empty line to return): ").strip()
+        try:
+            text = input("\nEnter a Kazakh text or a single word (empty line to return): ").strip()
+        except EOFError:                # input closed (Ctrl+Z / Ctrl+D): back to the menu
+            print()
+            return
         if not text:
             return
         if not preprocess(text, "wordform"):
@@ -166,10 +171,16 @@ def run_step(choice: str) -> bool:
         return True
     except FileNotFoundError as e:
         print(f"[missing file] {e}")
+    except PermissionError as e:
+        print(f"[file in use] {e.filename}: close it (e.g. in Excel) and try again.")
+    except sqlite3.Error as e:
+        print(f"[database error] {e}")
     except (ValueError, KeyError) as e:
         print(f"[error] {e}")
     except KeyboardInterrupt:
         print("\n[interrupted]")
+    except Exception as e:                       # last resort: keep the menu alive
+        print(f"[unexpected error] {type(e).__name__}: {e}")
     return False
 
 
@@ -186,7 +197,11 @@ def show_menu():
 def interactive():
     while True:
         show_menu()
-        choice = input("Choose an option: ").strip()
+        try:
+            choice = input("Choose an option: ").strip()
+        except (EOFError, KeyboardInterrupt):    # Ctrl+C / Ctrl+Z at the prompt exits cleanly
+            print("\nBye!")
+            break
         if choice == "0":
             print("Bye!")
             break
@@ -201,6 +216,8 @@ def main():
     parser.add_argument("--run-all", action="store_true", help="run the whole pipeline without the menu")
     parser.add_argument("--nrows", type=int, default=None, help="use only the first N rows (quick test)")
     args = parser.parse_args()
+    if args.nrows is not None and args.nrows <= 0:
+        parser.error("--nrows must be a positive number")
 
     config.ensure_dirs()
     session["nrows"] = args.nrows

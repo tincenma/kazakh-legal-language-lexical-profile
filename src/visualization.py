@@ -25,7 +25,12 @@ def find_font() -> str | None:
     for path in FONT_CANDIDATES:
         if path.exists():
             return str(path)
-    return None
+    # matplotlib always ships DejaVu Sans, which also covers the Kazakh letters
+    try:
+        from matplotlib import font_manager
+        return font_manager.findfont("DejaVu Sans", fallback_to_default=False)
+    except ValueError:
+        return None
 
 
 def _save(fig, name: str) -> Path:
