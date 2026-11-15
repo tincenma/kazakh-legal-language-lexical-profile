@@ -23,7 +23,7 @@ Final project for **Programming for AI**, School of Artificial Intelligence and 
 
 - One file, `data/kazakhlawcorpus_kk_only.csv`, about **337 MB**, with **215,889 acts** (one row per act) and 25 columns.
 - Acts were adopted between 1947 and 2026.
-- The corpus has **no full act text**. The text analysed here is `title` + `description` (a short line such as "Order of the Minister of ... No. 417 of 15 July 2004").
+- The corpus has **no full act text**. The text analyzed here is `title` + `description` (a short line such as "Order of the Minister of ... No. 417 of 15 July 2004").
 - Main metadata columns: `law_id`, `date_adopted` (ISO `YYYY-MM-DD`), `is_repealed` (`t`/`f`), `act_form`, `legal_relation_area`, `legal_force`, `adopting_body`, `region` and `database_section`.
 - The raw file is **not committed** because of its size. Menu item 1 downloads it automatically.
 
@@ -212,7 +212,7 @@ If the CSV is stored somewhere else (for example on Google Drive in Colab), set 
 5 – Lexical profile (vocabulary, Zipf, n-grams)
 6 – Decade comparison
 7 – Train & compare models (baseline vs methods)
-8 – Analyse a text / query
+8 – Analyze a text / query
 9 – Error analysis
 0 – Exit
 ```
@@ -226,7 +226,7 @@ Run the steps in order the first time. Completed steps are marked `[done]` (stor
 
 | # | Requirement | Where |
 |---|---|---|
-| 1 | At least 5 functions besides `main` | over 60 functions across the 10 modules in `src/` |
+| 1 | At least 5 functions besides `main` | about 100 functions across `main.py` and the 10 modules in `src/` |
 | 2 | Lists / dicts | token lists, `Counter`s per decade, menu and action dicts, result dicts |
 | 3 | `if / elif / else` | menu dispatch, `preprocess()` mode switch, stemmer rules |
 | 4 | Loops | chunk loop, menu `while` loop, corpus pass, per-decade loops |
