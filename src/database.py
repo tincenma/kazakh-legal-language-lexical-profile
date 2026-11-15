@@ -98,6 +98,7 @@ def run_query(sql: str, db_path: Path = config.DB_PATH, params=None) -> pd.DataF
 
 def summarize_findings(results: dict[str, pd.DataFrame]) -> dict:
     """Turn the SQL result tables into the key facts used in the report."""
+    results = {name: df for name, df in results.items() if len(df)}   # small samples can give empty results
     findings = {}
     if "acts_per_decade" in results:
         d = results["acts_per_decade"]
@@ -123,7 +124,7 @@ def summarize_findings(results: dict[str, pd.DataFrame]) -> dict:
     if "top_bodies" in results and "acts_per_decade" in results:
         b = results["top_bodies"].iloc[0]
         findings["top_body"] = {"body": b["body"].split(" (")[0], "n_acts": int(b["n_acts"]),
-                                "share_pct": round(100 * b["n_acts"] / results["acts_per_decade"]["n_acts"].sum(), 1)}
+                                "share_pct": round(float(100 * b["n_acts"] / results["acts_per_decade"]["n_acts"].sum()), 1)}
     return findings
 
 

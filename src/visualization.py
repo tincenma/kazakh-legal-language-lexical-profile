@@ -200,6 +200,7 @@ def _short(name: str, n: int = 45) -> str:
 
 def plot_sql_results(results: dict[str, pd.DataFrame], min_decade: int = 1990) -> list[Path]:
     """Charts built directly from SQL query results (loaded into pandas)."""
+    results = {name: df for name, df in results.items() if len(df)}   # skip empty results
     paths = []
 
     if "section_growth" in results:
