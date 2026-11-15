@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from src import config
-from src.utils import save_json
+from src.utils import load_json, save_json
 
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -103,6 +103,7 @@ def run_audit(df: pd.DataFrame, nrows: int | None = None) -> dict:
         "date_formats": date_format_report(config.CSV_PATH, nrows) if config.CSV_PATH.exists() else {},
         "placeholders": placeholder_report(config.CSV_PATH, nrows) if config.CSV_PATH.exists() else {},
         "multi_value": {col: multi_value_report(df, col) for col in config.MULTI_VALUE_COLUMNS if col in df},
+        "cleaning_applied": load_json(config.RESULTS_DIR / "cleaning_log.json", default={}),
     }
     save_json(report, config.RESULTS_DIR / "audit.json")
     missing.to_csv(config.RESULTS_DIR / "missing_values.csv")
@@ -114,6 +115,7 @@ def run_audit(df: pd.DataFrame, nrows: int | None = None) -> dict:
     print("\nPlaceholders found in raw CSV:")
     for col, found in report["placeholders"].items():
         print(f"  {col:<28} {found}")
+    print(f"\nCleaning applied at load time: {report['cleaning_applied']}")
     for col, info in report["multi_value"].items():
         print(f"\n{col}: {info['unique_values']} unique values, "
               f"{info['acts_with_multiple_values']:,} acts with several values "

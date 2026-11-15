@@ -39,6 +39,26 @@ def clean_placeholders(chunk: pd.DataFrame) -> pd.DataFrame:
     return chunk
 
 
+def clean_values(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    """Fix invalid values found by the audit; returns the cleaned frame and a log of changes.
+
+    - database_section: a few acts carry bare numeric codes ("3700", "3800") instead of a
+      section name. They match no real section, so they become missing.
+    - multi-valued and text fields: collapse repeated whitespace ("...).  Арнаулы").
+    """
+    log = {}
+    if "database_section" in df:
+        numeric = df["database_section"].str.fullmatch(r"\d+", na=False)
+        log["database_section_numeric_codes"] = df.loc[numeric, "database_section"].value_counts().to_dict()
+        df.loc[numeric, "database_section"] = np.nan
+    for col in config.MULTI_VALUE_COLUMNS + config.TEXT_COLUMNS:
+        if col in df:
+            before = df[col].copy()
+            df[col] = df[col].str.replace(r"\s+", " ", regex=True).str.strip()
+            log[f"{col}_whitespace_fixed"] = int((before.fillna("") != df[col].fillna("")).sum())
+    return df, log
+
+
 def read_csv_chunked(path: Path = config.CSV_PATH, chunksize: int = config.CHUNKSIZE,
                      nrows: int | None = None) -> pd.DataFrame:
     """Read the CSV chunk by chunk, cleaning placeholders in each chunk."""
@@ -84,7 +104,7 @@ def benchmark_formats(df: pd.DataFrame, csv_path: Path = config.CSV_PATH,
     results = {}
 
     start = time.perf_counter()
-    naive = pd.read_csv(csv_path, nrows=nrows)
+    naive = pd.read_csv(csv_path, nrows=nrows, low_memory=False)   # default pandas behaviour, all object
     results["csv_read_time_s"] = round(time.perf_counter() - start, 2)
     results["csv_naive_memory_mb"] = df_memory_mb(naive)
     results["csv_file_mb"] = file_size_mb(csv_path)
@@ -108,6 +128,9 @@ def load_and_convert(nrows: int | None = None) -> pd.DataFrame:
     print("Reading CSV in chunks...")
     raw = read_csv_chunked(nrows=nrows)
     mem_before = df_memory_mb(raw)
+    raw, cleaning_log = clean_values(raw)
+    save_json(cleaning_log, config.RESULTS_DIR / "cleaning_log.json")
+    print(f"Cleaning: {cleaning_log}")
 
     optimized = optimize_dtypes(raw)
     # `text` is a new derived column, so compare like with like
