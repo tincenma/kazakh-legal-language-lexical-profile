@@ -185,7 +185,8 @@ def decade_shifts(words_by_decade: dict[int, Counter], docs: Counter, top: int =
             if a[w] + b[w] < min_count:
                 continue
             scores[w] = math.log(((b[w] + 1) / (nb + 1)) / ((a[w] + 1) / (na + 1)))
-        ranked = sorted(scores.items(), key=lambda kv: kv[1])
+        # ties broken by the word itself, so the order is the same on every run
+        ranked = sorted(scores.items(), key=lambda kv: (kv[1], kv[0]))
         new_terms = [w for w, f in b.most_common() if a[w] == 0 and f >= min_count][:top]
         shifts.append({
             "from": prev, "to": cur,
