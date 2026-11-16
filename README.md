@@ -258,7 +258,7 @@ All numbers come from `reports/results/` and all plots from `reports/figures/`.
 Optimizing the data types of the same 25 columns shrinks the in-memory frame from **617 MB** (every column as text) to **355 MB (−42.5%)**. Read times come from one run; two full runs differed by up to 20%.
 
 ### 6.2 Data audit
-- `law_id` has no duplicates, but **53,916 titles are duplicates**, mostly boilerplate.
+- `law_id` has no duplicates, but **54,389 titles are duplicates**, mostly boilerplate.
 - **Only 53 acts were adopted before 1990.** Per decade: 1990s 9,455; 2000s 28,302; 2010s 91,706; 2020s 86,373. Decade comparisons therefore cover 1990–2020s.
 - Placeholders were still present despite the dataset card: for example `regulatory_body` has 93,272 `ЖОҚ`, and `gov_registration_number` has 54,826 `НЕТ` and 23,948 `undefined`.
 - `legal_relation_area` has 351 distinct tags. 152,674 acts have more than one (up to 12 per act).
