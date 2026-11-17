@@ -156,11 +156,17 @@ Decades with fewer than 300 acts are left out of the comparisons.
 ### 3.7 Error analysis (`error_analysis.py`)
 Covers the confusion matrix, the most frequent *true → predicted* section pairs, error rate by text length and by year, sample errors (`error_examples.csv`), and the acts that only the word-form model or only the char n-gram model gets right.
 
-### 3.8 Full-text case study (`fulltext.py`, menu item 10)
-The corpus has no full act texts. adilet.zan.kz has no bulk download, and its robots.txt disallows the `/api/` that serves act texts, so the corpus is not crawled. Instead, the full texts of a small stratified sample are downloaded through the site's own interface:
-- 96 acts by default, 3 per decade (1990s–2020s) in each of the 8 largest sections, listed in `data/fulltext/sample_to_collect.csv` with a collector assigned to each. Menu 10 → 1 changes the size; a larger list always contains the smaller one, so texts already collected stay valid.
+### 3.8 Full-text analysis (`fulltext.py`, `fetch_pdfs.py`, menu item 10)
+The corpus has no full act texts. adilet.zan.kz has no bulk download, and its robots.txt disallows the `/api/` that serves act texts, so the corpus is not crawled. Instead, the full texts of a stratified sample are downloaded through the site's own interface:
+- Up to 1,024 acts: 32 per decade (1990s–2020s) in each of the 8 largest sections, listed in `data/fulltext/sample_to_collect.csv` with a collector assigned to each. Menu 10 → 1 changes the size; a larger list always contains the smaller one, so texts already collected stay valid.
 - `fetch_pdfs.py` drives a real browser (Playwright), signed in with a team member's account. For each act on the list it opens the act's page, clicks **Жүктеу** → **PDF жүктеп алу**, and saves the PDF. Acts are fetched one at a time with a 4–8 s pause. The PDF text, with page-number footers removed, is saved as `data/fulltext/<law_id>.txt`. A text copied by hand into that file works the same way.
-- For each act, the module compares the title + description with the full text: length, vocabulary, the effect of stemming, the share of title words that occur in the body, and the section the best model predicts from each.
+- Before analysis each text is cleaned: the Russian header line ("Закон от …") and dash rulers are removed, and words hyphenated across a line break are joined.
+
+Menu 10 → 2 repeats every analysis on the full texts and compares the two sources on exactly the same acts:
+- **Lexical profile** (as menu 5–6): vocabulary by representation, Zipf and Heaps fits, top words and n-grams, decade shifts, word clouds. Outputs carry the suffix `_full`.
+- **Source comparison** (`fulltext_vs_title.csv`, figure 21): vocabulary size, stemming reduction, Zipf exponent and Heaps β for title + description vs full text; the full texts are also cut to the titles' token count, because vocabulary grows with corpus size.
+- **Models** (as menu 7 and 9): the same four models and the same leakage-free temporal split, trained once on the full texts and once on the title + description of the same acts (`fulltext_vs_title_models.csv`, figure 22), plus error analysis of the full-text model.
+- **Per act**: length ratio, share of title words found in the body, and the section the main model predicts from each source.
 
 The steps are described in `data/fulltext/README.md`.
 
@@ -236,7 +242,7 @@ If the CSV is stored somewhere else (for example on Google Drive in Colab), set 
 7 – Train & compare models (baseline vs methods)
 8 – Analyze a text / query
 9 – Error analysis
-10 – Full-text case study (sample of full acts)
+10 – Full-text analysis (all steps on downloaded full acts)
 0 – Exit
 ```
 

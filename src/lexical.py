@@ -10,11 +10,12 @@ from nltk.util import ngrams
 
 from src import config
 from src.preprocessing import KAZAKH_LETTERS, STOPWORDS, char_ngrams, stem, tokenize
-from src.utils import load_json, save_json
+from src.utils import load_json, save_json, tagged
 
 MIN_DOCS_PER_DECADE = 300     # decades with fewer acts are too small to compare reliably
 PROFILE_PATH = config.RESULTS_DIR / "lexical_profile.json"
 TERM_DECADE_PATH = config.RESULTS_DIR / "term_by_decade.parquet"
+
 
 
 # A capitalized word right before an administrative unit word is a place name:
@@ -25,7 +26,7 @@ NOT_TOPONYMS = {"қазақстан", "республика", "республи�
 TOPONYMS_PATH = config.RESULTS_DIR / "toponyms.txt"
 
 
-def extract_toponyms(df: pd.DataFrame, min_count: int = 3) -> set[str]:
+def extract_toponyms(df: pd.DataFrame, min_count: int = 3, tag: str = "") -> set[str]:
     """Place names (stems) found in titles, descriptions, adopting bodies and place of adoption.
 
     Some villages are named after common words ("Еңбек ауылдық округі" - "labour"), so a
@@ -52,7 +53,7 @@ def extract_toponyms(df: pd.DataFrame, min_count: int = 3) -> set[str]:
     # Institution names are capitalized too ("Еңбек ... министрлігі"), so a real place name must
     # almost never appear in lower case: at most 1 lower-case use per 10 capitalized ones.
     toponyms = {t for t in candidates if lower[t] <= 0.1 * upper[t]}
-    TOPONYMS_PATH.write_text("\n".join(sorted(toponyms)), encoding="utf-8")
+    tagged(TOPONYMS_PATH, tag).write_text("\n".join(sorted(toponyms)), encoding="utf-8")
     return toponyms
 
 
@@ -173,9 +174,9 @@ def term_decade_matrix(words_by_decade: dict[int, Counter], top_n: int = 20_000)
 
 
 def decade_shifts(words_by_decade: dict[int, Counter], docs: Counter, top: int = 20,
-                  min_count: int = 20) -> list[dict]:
+                  min_count: int = 20, min_docs: int = MIN_DOCS_PER_DECADE) -> list[dict]:
     """For each pair of consecutive decades: terms that grew or declined most (smoothed log ratio)."""
-    decades = sorted(d for d in words_by_decade if d >= 0 and docs[d] >= MIN_DOCS_PER_DECADE)
+    decades = sorted(d for d in words_by_decade if d >= 0 and docs[d] >= min_docs)
     shifts = []
     for prev, cur in zip(decades, decades[1:]):
         a, b = words_by_decade[prev], words_by_decade[cur]
@@ -204,18 +205,23 @@ def merge(counters) -> Counter:
     return total
 
 
-def build_profile(df: pd.DataFrame) -> dict:
-    """Full lexical analysis; saves lexical_profile.json and term_by_decade.parquet."""
+def build_profile(df: pd.DataFrame, tag: str = "", min_docs: int = MIN_DOCS_PER_DECADE,
+                  heaps_every: int = 20_000) -> dict:
+    """Full lexical analysis; saves lexical_profile<tag>.json and term_by_decade<tag>.parquet.
+
+    tag '' analyses the title + description of every act; tag '_full' the downloaded full texts
+    (fewer acts, so a lower min_docs per decade).
+    """
     print("Counting tokens (one pass over the corpus)...")
-    counts = count_corpus(df)
+    counts = count_corpus(df, heaps_every)
     content = merge(counts["words"].values())
 
     vocab_table = vocabulary_comparison(counts["raw"], content)
-    vocab_table.to_csv(config.RESULTS_DIR / "vocabulary_comparison.csv")
+    vocab_table.to_csv(tagged(config.RESULTS_DIR / "vocabulary_comparison.csv", tag))
     print("\nVocabulary size by representation:")
     print(vocab_table.to_string())
 
-    valid_decades = sorted(d for d in counts["words"] if d >= 0 and counts["docs"][d] >= MIN_DOCS_PER_DECADE)
+    valid_decades = sorted(d for d in counts["words"] if d >= 0 and counts["docs"][d] >= min_docs)
     zipf = {"all_raw": fit_zipf(counts["raw"]), "all_content": fit_zipf(content),
             "all_stems": fit_zipf(derive_stems(content))}
     for d in valid_decades:
@@ -224,10 +230,10 @@ def build_profile(df: pd.DataFrame) -> dict:
     print(f"\nZipf exponent s (raw tokens): {zipf['all_raw']['s']}  R²={zipf['all_raw']['r2']}")
     print(f"Heaps' law: K={heaps['K']}, beta={heaps['beta']}")
 
-    term_decade_matrix(counts["words"]).to_parquet(TERM_DECADE_PATH)
+    term_decade_matrix(counts["words"]).to_parquet(tagged(TERM_DECADE_PATH, tag))
 
     # Place names (district councils' acts) swamp the decade comparison, so they are removed there.
-    toponyms = extract_toponyms(df)
+    toponyms = extract_toponyms(df, tag=tag)
     words_no_places = {d: without_toponyms(c, toponyms) for d, c in counts["words"].items()}
     toponym_share = {str(d): round(100 * (1 - sum(words_no_places[d].values()) / max(1, sum(counts["words"][d].values()))), 2)
                      for d in valid_decades}
@@ -250,29 +256,30 @@ def build_profile(df: pd.DataFrame) -> dict:
         "toponym_token_share_pct": toponym_share,
         "top_words_by_decade": {str(d): words_no_places[d].most_common(50) for d in valid_decades},
         "top_bigrams_by_decade": {str(d): bigrams_no_places(counts["bigrams"][d], 30) for d in valid_decades},
-        "decade_shifts": decade_shifts(words_no_places, counts["docs"]),
+        "decade_shifts": decade_shifts(words_no_places, counts["docs"], min_docs=min_docs),
         # rank-frequency data for plotting (kept small)
         "rank_freq": {
             "raw": sorted(counts["raw"].values(), reverse=True)[:50_000],
             "stems": sorted(derive_stems(content).values(), reverse=True)[:50_000],
         },
     }
-    save_json(profile, PROFILE_PATH)
+    save_json(profile, tagged(PROFILE_PATH, tag))
     return profile
 
 
-def load_profile() -> dict:
-    profile = load_json(PROFILE_PATH)
+def load_profile(tag: str = "") -> dict:
+    profile = load_json(tagged(PROFILE_PATH, tag))
     if profile is None:
-        raise FileNotFoundError("Lexical profile not found. Run menu item 5 first.")
+        raise FileNotFoundError("Lexical profile not found. Run menu item 5 (or 10 for full texts) first.")
     return profile
 
 
-def term_history(word: str) -> pd.Series | None:
+def term_history(word: str, tag: str = "") -> pd.Series | None:
     """Frequency per million of a word (or its stem) across decades."""
-    if not TERM_DECADE_PATH.exists():
+    path = tagged(TERM_DECADE_PATH, tag)
+    if not path.exists():
         raise FileNotFoundError("Run menu item 5 (Lexical profile) first.")
-    matrix = pd.read_parquet(TERM_DECADE_PATH)
+    matrix = pd.read_parquet(path)
     word = word.strip().lower()
     if word in matrix.index:
         return matrix.loc[word]

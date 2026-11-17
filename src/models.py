@@ -21,7 +21,7 @@ from sklearn.svm import LinearSVC
 
 from src import config
 from src.preprocessing import analyzer_char, analyzer_stem, analyzer_wordform
-from src.utils import load_json, measure, save_json
+from src.utils import load_json, measure, save_json, tagged
 
 BEST_MODEL_PATH = config.MODELS_DIR / "best_model.joblib"
 PREDICTIONS_PATH = config.RESULTS_DIR / "test_predictions.parquet"
@@ -36,7 +36,8 @@ def normalize_title(title: str) -> str:
     return re.sub(r"\s+", " ", title).strip()
 
 
-def leakage_free_split(df: pd.DataFrame, split_year: int = config.SPLIT_YEAR) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+def leakage_free_split(df: pd.DataFrame, split_year: int = config.SPLIT_YEAR,
+                       min_support: int = config.MIN_CLASS_SUPPORT) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     """Temporal split + removal of test acts whose (normalized) title also occurs in train.
 
     Many acts share boilerplate titles ("... күшін жою туралы" = "on repealing ..."). Without
@@ -54,7 +55,7 @@ def leakage_free_split(df: pd.DataFrame, split_year: int = config.SPLIT_YEAR) ->
 
     # keep sections that are frequent enough in train and present in test
     support = train["label"].value_counts()
-    keep = set(support[support >= config.MIN_CLASS_SUPPORT].index) & set(test["label"])
+    keep = set(support[support >= min_support].index) & set(test["label"])
     train, test = train[train["label"].isin(keep)], test[test["label"].isin(keep)]
 
     info = {
@@ -100,9 +101,13 @@ def evaluate_model(name: str, model: Pipeline, train: pd.DataFrame, test: pd.Dat
     return row, pred
 
 
-def compare_methods(df: pd.DataFrame) -> pd.DataFrame:
-    """Train every model, print and save the comparison table, keep the best model."""
-    train, test, split_info = leakage_free_split(df)
+def compare_methods(df: pd.DataFrame, tag: str = "", min_support: int = config.MIN_CLASS_SUPPORT) -> pd.DataFrame:
+    """Train every model, print and save the comparison table, keep the best model.
+
+    tag '' = title + description of the whole corpus (the best model is kept for menu item 8);
+    other tags (full texts, or titles of the full-text sample) save their own tables only.
+    """
+    train, test, split_info = leakage_free_split(df, min_support=min_support)
     print(f"Split: {split_info}")
     if split_info["train_rows"] == 0 or split_info["test_rows"] == 0:
         raise ValueError("Empty train or test set: check SPLIT_YEAR / MIN_CLASS_SUPPORT in config.py")
@@ -117,20 +122,21 @@ def compare_methods(df: pd.DataFrame) -> pd.DataFrame:
               f"mem={row['fit_peak_mem_mb']}MB  features={row['n_features']:,}")
 
     table = pd.DataFrame(rows).set_index("model")
-    table.to_csv(config.RESULTS_DIR / "model_comparison.csv")
+    table.to_csv(tagged(config.RESULTS_DIR / "model_comparison.csv", tag))
     best = table["f1_macro"].idxmax()
     print("\n" + table.to_string())
     print(f"\nBest model by F1-macro: {best}")
 
-    joblib.dump(models[best], BEST_MODEL_PATH)
+    if not tag:
+        joblib.dump(models[best], BEST_MODEL_PATH)
     out = test[["law_id", "title", "text", "year", "label"]].copy()
     for name, pred in predictions.items():
         out[f"pred_{name}"] = pred
-    out.to_parquet(PREDICTIONS_PATH, index=False)
+    out.to_parquet(tagged(PREDICTIONS_PATH, tag), index=False)
 
     report = classification_report(test["label"], predictions[best], output_dict=True, zero_division=0)
     save_json({"split": split_info, "best_model": best, "comparison": table.to_dict(orient="index"),
-               "per_class_best": report}, config.RESULTS_DIR / "model_comparison.json")
+               "per_class_best": report}, tagged(config.RESULTS_DIR / "model_comparison.json", tag))
     return table
 
 
@@ -152,6 +158,6 @@ def predict_text(text: str, model: Pipeline | None = None, top_k: int = 3) -> li
     return [(model.predict([text])[0], 1.0)]
 
 
-def best_model_name() -> str | None:
-    info = load_json(config.RESULTS_DIR / "model_comparison.json", default={})
+def best_model_name(tag: str = "") -> str | None:
+    info = load_json(tagged(config.RESULTS_DIR / "model_comparison.json", tag), default={})
     return info.get("best_model")

@@ -33,7 +33,24 @@ def find_font() -> str | None:
         return None
 
 
+# Set by set_source(): '' for title + description, '_full' for the full texts. Full-text figures get
+# the tag in the file name and "(full texts)" in their titles, so the two sets never mix.
+SOURCE_TAG = ""
+SOURCE_LABELS = {"": "", "_full": "full texts", "_sample_title": "title + description, full-text sample"}
+
+
+def set_source(tag: str) -> None:
+    global SOURCE_TAG
+    SOURCE_TAG = tag
+
+
 def _save(fig, name: str) -> Path:
+    if SOURCE_TAG:
+        label = SOURCE_LABELS.get(SOURCE_TAG, SOURCE_TAG.strip("_"))
+        for ax in fig.axes:
+            if ax.get_title():
+                ax.set_title(f"{ax.get_title()} ({label})")
+        name = f"{name}{SOURCE_TAG}"
     path = config.FIGURES_DIR / f"{name}.png"
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
@@ -161,6 +178,44 @@ def plot_term_history(word: str, history: pd.Series) -> Path:
     ax.set(title=f"'{word}' across decades", xlabel="decade", ylabel="frequency per million tokens")
     safe = "".join(c for c in word if c.isalnum())[:30] or "term"
     return _save(fig, f"term_{safe}")
+
+
+def plot_source_comparison(table: pd.DataFrame, curves: dict) -> Path:
+    """Title + description vs full text on the same acts: vocabulary/stemming and vocabulary growth."""
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    names = [n for n in table.index if pd.notna(table.loc[n, "wordform_types"])]
+    x = np.arange(len(names))
+    forms = table.loc[names, "wordform_types"].astype(float)
+    stems = table.loc[names, "stem_types"].astype(float)
+    b1 = axes[0].bar(x - 0.2, forms, 0.4, label="word forms", color="#7a9cc6")
+    b2 = axes[0].bar(x + 0.2, stems, 0.4, label="suffix stems", color="#dd8452")
+    axes[0].bar_label(b1, labels=[f"{v:,.0f}" for v in forms], fontsize=7)
+    reduction = table.loc[names, "stem_reduction_pct"].astype(float)
+    axes[0].bar_label(b2, labels=[f"{v:,.0f}\n(-{r:.0f}%)" for v, r in zip(stems, reduction)], fontsize=7)
+    axes[0].set_xticks(x, [n.replace(", ", ",\n") for n in names], fontsize=8)
+    axes[0].set(title="Vocabulary and the effect of stemming (same acts)", ylabel="distinct content units")
+    axes[0].legend(fontsize=8)
+    for (name, curve), color in zip(curves.items(), ["#2a6f97", "#c44e52"]):
+        c = np.array(curve, dtype=float)
+        axes[1].loglog(c[:, 0], c[:, 1], "-", color=color, label=name)
+    axes[1].set(title="Vocabulary growth (Heaps), acts in date order", xlabel="tokens seen",
+                ylabel="distinct word forms")
+    axes[1].legend(fontsize=8)
+    return _save(fig, "21_fulltext_vs_title")
+
+
+def plot_fulltext_models(table: pd.DataFrame) -> Path:
+    """F1-macro of every model on the same full-text acts: title + description vs full text."""
+    fig, ax = plt.subplots(figsize=(8, 3.8))
+    x = np.arange(len(table))
+    b1 = ax.bar(x - 0.2, table["f1_title"], 0.4, label="title + description", color="#7a9cc6")
+    b2 = ax.bar(x + 0.2, table["f1_full"], 0.4, label="full text", color="#2a6f97")
+    ax.bar_label(b1, fmt="%.3f", fontsize=7)
+    ax.bar_label(b2, fmt="%.3f", fontsize=7)
+    ax.set_xticks(x, table.index, rotation=15, ha="right", fontsize=8)
+    ax.set(title="F1-macro on the same acts and split: title + description vs full text", ylabel="F1-macro")
+    ax.legend(fontsize=8)
+    return _save(fig, "22_fulltext_vs_title_models")
 
 
 def plot_model_comparison(table: pd.DataFrame) -> Path:

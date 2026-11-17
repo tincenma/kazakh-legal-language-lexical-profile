@@ -39,6 +39,11 @@ def mark_step_done(step: str, **info) -> None:
     save_json(state, STATE_PATH)
 
 
+def tagged(path: Path, tag: str = "") -> Path:
+    """Output path for one text source: tag '' = title + description, '_full' = full texts."""
+    return path.with_name(f"{path.stem}{tag}{path.suffix}")
+
+
 def df_memory_mb(df: pd.DataFrame) -> float:
     return round(df.memory_usage(deep=True).sum() / 1024 ** 2, 2)
 

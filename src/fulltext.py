@@ -11,14 +11,17 @@ Workflow:
   2. python -m src.fetch_pdfs -> data/fulltext/<law_id>.txt (or copy a text by hand, UTF-8)
   3. run_case_study()   -> reports/results/fulltext_case_study.csv + .json, two figures
 """
+import random
+import re
 import zlib
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from src import config
-from src.preprocessing import remove_stopwords, stem, tokenize
+from src.preprocessing import STOPWORDS, remove_stopwords, stem, tokenize
 from src.utils import save_json
 
 PER_CELL = 3                 # acts per (decade, section) cell
@@ -83,6 +86,124 @@ def load_fulltexts(folder: Path | None = None) -> dict[str, str]:
         if text:
             texts[path.stem] = text
     return texts
+
+
+# The PDF repeats the act's type and date in Russian on one line: "Закон от 07.06.1999 № 389".
+RUSSIAN_HEADER = re.compile(r"^[А-ЯЁа-яё ]+ от \d{2}\.\d{2}\.\d{4}.*$", re.MULTILINE)
+FULLTEXT_MIN_DOCS = 30        # acts per decade needed to compare decades in the full-text sample
+FULLTEXT_MIN_SUPPORT = 20     # acts per section needed in the training part of the full-text split
+
+
+def clean_fulltext(text: str) -> str:
+    """Remove the Russian header line and dash rulers left over from the PDF layout, and join words
+    hyphenated across a line break ("бағ-" + "дарлама" -> "бағдарлама")."""
+    text = RUSSIAN_HEADER.sub("", text)
+    text = re.sub(r"([а-яәғқңөұүһі])-\n([а-яәғқңөұүһі])", r"\1\2", text, flags=re.IGNORECASE)
+    text = re.sub(r"^-{5,}$", "", text, flags=re.MULTILINE)
+    return re.sub(r"\n{2,}", "\n", text).strip()
+
+
+def fulltext_corpus(df: pd.DataFrame) -> pd.DataFrame:
+    """The acts that have a downloaded full text, with all their metadata.
+
+    `text` becomes the cleaned full text; the original title + description is kept in `text_short`,
+    so both sources can be analysed on exactly the same acts.
+    """
+    texts = load_fulltexts()
+    if not texts:
+        raise FileNotFoundError(f"No full texts in {config.FULLTEXT_DIR}. Download them first "
+                                "(python -m src.fetch_pdfs).")
+    sub = df[df["law_id"].isin(texts)].copy()
+    sub["text_short"] = sub["text"]
+    sub["text"] = sub["law_id"].map(lambda law_id: clean_fulltext(texts[law_id]))
+    sub = sub[sub["text"].str.len() > 0]
+    print(f"Full-text corpus: {len(sub)} acts, "
+          f"{sub['text'].str.len().sum() / 1e6:.1f}M characters, decades: "
+          f"{ {int(k): int(v) for k, v in sub['decade'].value_counts().sort_index().items()} }")
+    return sub
+
+
+def _source_stats(token_lists: list[list[str]], heaps_points: int = 60) -> tuple[dict, list, Counter]:
+    """Vocabulary, stemming, Zipf and Heaps figures for one text source."""
+    from src.lexical import derive_char_ngrams, derive_stems, fit_heaps, fit_zipf
+
+    raw, content = Counter(), Counter()
+    total = sum(len(t) for t in token_lists)
+    step = max(1, total // heaps_points)
+    curve, seen = [], 0
+    for tokens in token_lists:
+        raw.update(tokens)
+        content.update(t for t in tokens if t not in STOPWORDS)
+        before, seen = seen, seen + len(tokens)
+        if seen // step > before // step:
+            curve.append((seen, len(raw)))
+    curve.append((seen, len(raw)))
+    stems = derive_stems(content)
+    zipf, heaps = fit_zipf(content), fit_heaps(curve)
+    stats = {
+        "acts": len(token_lists),
+        "tokens": total,
+        "tokens_per_act": round(total / max(1, len(token_lists)), 1),
+        "wordform_types": len(content),
+        "stem_types": len(stems),
+        "stem_reduction_pct": round(100 * (1 - len(stems) / max(1, len(content))), 1),
+        "char_ngram_types": len(derive_char_ngrams(content)),
+        "hapax_pct": round(100 * sum(1 for f in content.values() if f == 1) / max(1, len(content)), 1),
+        "zipf_s": zipf["s"], "zipf_r2": zipf["r2"],
+        "heaps_K": heaps["K"], "heaps_beta": heaps["beta"],
+    }
+    return stats, curve, content
+
+
+def _equal_size_vocab(token_lists: list[list[str]], n_tokens: int, seed: int = config.RANDOM_STATE) -> dict:
+    """Vocabulary after the first n_tokens content tokens, acts taken in a random order.
+
+    Vocabulary grows with corpus size, so the full texts are cut to as many tokens as the titles
+    have; only then is the comparison of vocabulary size and stemming fair.
+    """
+    order = list(range(len(token_lists)))
+    random.Random(seed).shuffle(order)
+    kept: list[str] = []
+    for i in order:
+        kept.extend(t for t in token_lists[i] if t not in STOPWORDS)
+        if len(kept) >= n_tokens:
+            break
+    kept = kept[:n_tokens]
+    forms = set(kept)
+    stems = {stem(t) for t in forms}
+    return {"tokens": len(kept), "wordform_types": len(forms), "stem_types": len(stems),
+            "stem_reduction_pct": round(100 * (1 - len(stems) / max(1, len(forms))), 1)}
+
+
+def compare_sources(fdf: pd.DataFrame) -> pd.DataFrame:
+    """Title + description vs full text on the same acts: vocabulary, stemming, Zipf, Heaps, top words."""
+    ordered = fdf.sort_values("date_adopted")
+    sources = {"title + description": ordered["text_short"], "full text": ordered["text"]}
+    tokens = {name: [tokenize(t) for t in col] for name, col in sources.items()}
+
+    rows, curves, content = {}, {}, {}
+    for name, token_lists in tokens.items():
+        rows[name], curves[name], content[name] = _source_stats(token_lists)
+    n_short = sum(1 for doc in tokens["title + description"] for t in doc if t not in STOPWORDS)
+    equal = _equal_size_vocab(tokens["full text"], n_short)
+    rows["full text, cut to title size"] = {**{k: None for k in rows["full text"]}, "acts": None, **equal}
+
+    top = {name: {w for w, _ in c.most_common(100)} for name, c in content.items()}
+    overlap = len(top["title + description"] & top["full text"])
+    table = pd.DataFrame(rows).T
+    table.to_csv(config.RESULTS_DIR / "fulltext_vs_title.csv", encoding="utf-8-sig")
+    save_json({"table": table.to_dict(orient="index"),
+               "top100_shared_words": overlap,
+               "top_words": {name: c.most_common(30) for name, c in content.items()},
+               "heaps_curves": curves},
+              config.RESULTS_DIR / "fulltext_vs_title.json")
+
+    from src import visualization as viz
+    viz.plot_source_comparison(table, curves)
+    print("\nTitle + description vs full text (same acts):")
+    print(table.to_string())
+    print(f"Top-100 content words shared by both sources: {overlap}")
+    return table
 
 
 def compare_act(title_text: str, full_text: str) -> dict:

@@ -26,7 +26,7 @@ MENU = {
     "7": "Train & compare models (baseline vs methods)",
     "8": "Analyze a text / query",
     "9": "Error analysis",
-    "10": "Full-text case study (sample of full acts)",
+    "10": "Full-text analysis (all steps on downloaded full acts)",
     "0": "Exit",
 }
 
@@ -79,9 +79,7 @@ def step_sql():
     mark_step_done("sql", n_queries=len(results))
 
 
-def step_lexical():
-    from src.lexical import build_profile
-    profile = build_profile(get_corpus())
+def plot_lexical(profile: dict) -> None:
     viz.plot_acts_per_decade(profile["docs_per_decade"])
     viz.plot_vocabulary(profile["vocabulary"])
     viz.plot_zipf(profile["rank_freq"], profile["zipf"])
@@ -89,12 +87,16 @@ def step_lexical():
     viz.plot_top_items(profile["top_words"], "Most frequent content words", "08_top_words")
     viz.plot_top_items(profile["top_bigrams"], "Most frequent bigrams", "09_top_bigrams")
     print("\nTop 15 content words:", ", ".join(w for w, _ in profile["top_words"][:15]))
+
+
+def step_lexical():
+    from src.lexical import build_profile
+    plot_lexical(build_profile(get_corpus()))
     mark_step_done("lexical")
 
 
-def step_decades():
-    from src.lexical import load_profile, term_history
-    profile = load_profile()
+def plot_decades(profile: dict, tag: str = "") -> None:
+    from src.lexical import term_history
     viz.plot_zipf_by_decade(profile["zipf"])
     viz.plot_wordclouds(profile["top_words_by_decade"])
     for shift in profile["decade_shifts"]:
@@ -103,9 +105,14 @@ def step_decades():
         print("  falling:", ", ".join(w for w, _ in shift["falling"][:10]))
         print("  new    :", ", ".join(shift["new_terms"][:10]) or "-")
     for word in ["кеңес", "министрлік", "цифрлық"]:     # Soviet / ministry / digital
-        history = term_history(word)
+        history = term_history(word, tag)
         if history is not None:
             viz.plot_term_history(word, history)
+
+
+def step_decades():
+    from src.lexical import load_profile
+    plot_decades(load_profile())
     mark_step_done("decades")
 
 
@@ -176,20 +183,66 @@ def ask_int(prompt: str, default: int, low: int, high: int) -> int:
         print(f"  please enter a number from {low} to {high}")
 
 
+def run_fulltext_analysis() -> None:
+    """Every analysis of the title + description corpus, repeated on the downloaded full texts,
+    plus a comparison of the two sources on exactly the same acts."""
+    import pandas as pd
+    from src import fulltext as ft
+    from src.error_analysis import run_error_analysis
+    from src.lexical import build_profile
+    from src.models import compare_methods
+
+    fdf = ft.fulltext_corpus(get_corpus())
+    try:
+        print("\n=== Lexical profile of the full texts ===")
+        viz.set_source("_full")
+        profile = build_profile(fdf, tag="_full", min_docs=ft.FULLTEXT_MIN_DOCS, heaps_every=10_000)
+        plot_lexical(profile)
+        plot_decades(profile, "_full")
+
+        print("\n=== Title + description vs full text, same acts ===")
+        viz.set_source("")
+        ft.compare_sources(fdf)
+
+        print("\n=== Models on the full texts ===")
+        viz.set_source("_full")
+        full = compare_methods(fdf, tag="_full", min_support=ft.FULLTEXT_MIN_SUPPORT)
+        viz.plot_model_comparison(full)
+        run_error_analysis(tag="_full")
+
+        print("\n=== Same models, same acts and split, on title + description ===")
+        viz.set_source("_sample_title")
+        short = compare_methods(fdf.assign(text=fdf["text_short"]), tag="_sample_title",
+                                min_support=ft.FULLTEXT_MIN_SUPPORT)
+        viz.plot_model_comparison(short)
+    finally:
+        viz.set_source("")
+    both = pd.DataFrame({"f1_title": short["f1_macro"], "f1_full": full["f1_macro"],
+                         "fit_time_title_s": short["fit_time_s"], "fit_time_full_s": full["fit_time_s"],
+                         "mem_title_mb": short["fit_peak_mem_mb"], "mem_full_mb": full["fit_peak_mem_mb"]})
+    both.to_csv(config.RESULTS_DIR / "fulltext_vs_title_models.csv")
+    viz.plot_fulltext_models(both)
+    print("\nF1-macro, same acts and split:")
+    print(both.to_string())
+
+    print("\n=== Per-act comparison ===")
+    ft.run_case_study(get_corpus())
+
+
 def step_fulltext():
-    """1: make or extend the list of acts to collect. 2: run the full-text comparison."""
-    from src.fulltext import N_SECTIONS, PER_CELL, load_fulltexts, make_sample, run_case_study
+    """1: make or extend the list of acts to collect. 2: run every analysis on the full texts."""
+    from src.fulltext import N_SECTIONS, PER_CELL, load_fulltexts, make_sample
     collected = len(load_fulltexts())
     print(f"{collected} full text(s) collected so far.")
-    choice = input("1 – make or extend the list of acts   2 – run the case study: ").strip()
+    choice = input("1 – make or extend the list of acts   2 – run the full-text analysis: ").strip()
     if choice == "1":
         per_cell = ask_int("Acts per decade and section", PER_CELL, 1, 20)
         sections = ask_int("Number of largest sections", N_SECTIONS, 1, 33)
         print(f"About {per_cell * sections * 4} acts; already collected texts stay on the list.")
         make_sample(get_corpus(), per_cell, sections)
     elif choice == "2":
-        run_case_study(get_corpus())
-        mark_step_done("fulltext")
+        run_fulltext_analysis()
+        mark_step_done("fulltext", acts=collected)
     else:
         print(f"'{choice}' is not an option.")
 
