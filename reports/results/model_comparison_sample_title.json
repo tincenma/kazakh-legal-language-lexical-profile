@@ -27,8 +27,8 @@
       "n_features": 0
     },
     "baseline_wordform_tfidf": {
-      "fit_time_s": 0.037,
-      "fit_peak_mem_mb": 0.54,
+      "fit_time_s": 0.039,
+      "fit_peak_mem_mb": 0.47,
       "predict_time_s": 0.015,
       "predict_peak_mem_mb": 0.09,
       "f1_macro": 0.5433,
@@ -37,9 +37,9 @@
       "n_features": 745
     },
     "stem_tfidf": {
-      "fit_time_s": 0.039,
+      "fit_time_s": 0.041,
       "fit_peak_mem_mb": 0.35,
-      "predict_time_s": 0.015,
+      "predict_time_s": 0.017,
       "predict_peak_mem_mb": 0.09,
       "f1_macro": 0.6014,
       "f1_weighted": 0.5954,
@@ -47,9 +47,9 @@
       "n_features": 645
     },
     "char_ngram_tfidf": {
-      "fit_time_s": 0.379,
+      "fit_time_s": 0.394,
       "fit_peak_mem_mb": 6.03,
-      "predict_time_s": 0.343,
+      "predict_time_s": 0.345,
       "predict_peak_mem_mb": 1.37,
       "f1_macro": 0.6145,
       "f1_weighted": 0.6164,

@@ -13,6 +13,7 @@ Workflow:
 """
 import random
 import re
+import time
 import zlib
 from collections import Counter
 from pathlib import Path
@@ -22,7 +23,7 @@ import pandas as pd
 
 from src import config
 from src.preprocessing import STOPWORDS, remove_stopwords, stem, tokenize
-from src.utils import save_json
+from src.utils import df_memory_mb, file_size_mb, save_json
 
 PER_CELL = 3                 # acts per (decade, section) cell
 N_SECTIONS = 8               # the largest sections
@@ -303,3 +304,88 @@ def plot_case_study(table: pd.DataFrame) -> None:
     fig.tight_layout()
     fig.savefig(config.FIGURES_DIR / "20_fulltext_case_study.png", dpi=110)
     plt.close(fig)
+
+
+FULLTEXT_PARQUET_PATH = config.PROCESSED_DIR / "fulltext.parquet"
+# Frequent Russian function words; in a Kazakh act they signal untranslated Russian passages.
+RUSSIAN_MARKERS = {"и", "в", "на", "по", "с", "о", "от", "для", "не", "что", "или", "к", "из",
+                   "года", "статья", "статьи", "пункт", "является", "который", "которые"}
+
+
+def store_fulltext_parquet(fdf: pd.DataFrame) -> dict:
+    """Save the cleaned full-text corpus as Parquet with compact dtypes; compare with the .txt files.
+
+    The same memory-aware handling as the main corpus (requirement 11): category / int32 dtypes
+    instead of object / int64, and one columnar Parquet file instead of hundreds of text files.
+    """
+    paths = [config.FULLTEXT_DIR / f"{law_id}.txt" for law_id in fdf["law_id"]]
+    start = time.perf_counter()
+    for path in paths:
+        path.read_text(encoding="utf-8-sig")
+    txt_read_s = time.perf_counter() - start
+
+    plain = pd.DataFrame({
+        "law_id": fdf["law_id"].astype(str),
+        "decade": fdf["decade"].astype("int64"),
+        "section": fdf[config.TARGET_COLUMN].astype(str),
+        "n_chars": fdf["text"].str.len().astype("int64"),
+        "text": fdf["text"],
+    })
+    compact = plain.assign(decade=plain["decade"].astype("int16"),
+                           section=plain["section"].astype("category"),
+                           n_chars=plain["n_chars"].astype("int32"))
+    FULLTEXT_PARQUET_PATH.parent.mkdir(parents=True, exist_ok=True)
+    compact.to_parquet(FULLTEXT_PARQUET_PATH, index=False)
+    start = time.perf_counter()
+    pd.read_parquet(FULLTEXT_PARQUET_PATH)
+    parquet_read_s = time.perf_counter() - start
+
+    meta = plain.drop(columns="text")
+    result = {
+        "acts": len(plain),
+        "txt_files_mb": round(sum(p.stat().st_size for p in paths) / 1024 ** 2, 2),
+        "parquet_mb": file_size_mb(FULLTEXT_PARQUET_PATH),
+        "txt_read_s": round(txt_read_s, 3),
+        "parquet_read_s": round(parquet_read_s, 3),
+        "metadata_memory_mb_default_dtypes": df_memory_mb(meta),
+        "metadata_memory_mb_optimized_dtypes": df_memory_mb(compact.drop(columns="text")),
+        "total_memory_mb_optimized": df_memory_mb(compact),
+    }
+    save_json(result, config.RESULTS_DIR / "fulltext_storage.json")
+    print(f"\nFull texts: {result['txt_files_mb']} MB in {len(paths)} .txt files -> "
+          f"{result['parquet_mb']} MB Parquet; read {result['txt_read_s']} s vs {result['parquet_read_s']} s; "
+          f"metadata memory {result['metadata_memory_mb_default_dtypes']} -> "
+          f"{result['metadata_memory_mb_optimized_dtypes']} MB with category/int dtypes")
+    return result
+
+
+def audit_fulltexts(fdf: pd.DataFrame) -> dict:
+    """Data quality of the full-text sample: coverage, length, very short texts, duplicates, Russian."""
+    sample = pd.read_csv(config.FULLTEXT_SAMPLE_PATH, encoding="utf-8-sig") \
+        if config.FULLTEXT_SAMPLE_PATH.exists() else pd.DataFrame(columns=["law_id"])
+    raw = load_fulltexts()
+    tokens = fdf["text"].map(tokenize)
+    n_tokens = tokens.map(len)
+    russian_share = tokens.map(lambda t: sum(w in RUSSIAN_MARKERS for w in t) / max(1, len(t)))
+    headers_removed = sum(bool(RUSSIAN_HEADER.search(raw[law_id])) for law_id in fdf["law_id"] if law_id in raw)
+    hyphen_joins = sum(len(re.findall(r"[а-яәғқңөұүһі]-\n[а-яәғқңөұүһі]", raw[law_id], re.IGNORECASE))
+                       for law_id in fdf["law_id"] if law_id in raw)
+    report = {
+        "acts_on_list": len(sample),
+        "acts_with_text": len(fdf),
+        "coverage_pct": round(100 * len(fdf) / max(1, len(sample)), 1),
+        "texts_not_in_corpus": sorted(set(raw) - set(fdf["law_id"])),
+        "tokens": {"min": int(n_tokens.min()), "median": float(n_tokens.median()),
+                   "mean": round(float(n_tokens.mean()), 1), "max": int(n_tokens.max())},
+        "very_short_acts_lt_50_tokens": int((n_tokens < 50).sum()),
+        "duplicate_texts": int(fdf["text"].duplicated().sum()),
+        "russian_header_lines_removed": int(headers_removed),
+        "hyphenated_line_breaks_joined": int(hyphen_joins),
+        "acts_with_russian_passages_gt_2pct": int((russian_share > 0.02).sum()),
+        "acts_per_decade": {int(k): int(v) for k, v in fdf["decade"].value_counts().sort_index().items()},
+    }
+    save_json(report, config.RESULTS_DIR / "fulltext_audit.json")
+    print("\nFull-text audit:")
+    for key, value in report.items():
+        print(f"  {key:<38} {value}")
+    return report

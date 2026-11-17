@@ -3,6 +3,7 @@
 
 PRAGMA foreign_keys = ON;
 
+DROP TABLE IF EXISTS fulltexts;      -- created by fulltext_schema.sql (menu 10); refers to acts
 DROP TABLE IF EXISTS act_forms;
 DROP TABLE IF EXISTS act_areas;
 DROP TABLE IF EXISTS acts;

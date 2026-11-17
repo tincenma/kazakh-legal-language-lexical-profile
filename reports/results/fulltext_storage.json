@@ -1,0 +1,10 @@
+{
+  "acts": 548,
+  "txt_files_mb": 24.13,
+  "parquet_mb": 7.76,
+  "txt_read_s": 0.124,
+  "parquet_read_s": 0.069,
+  "metadata_memory_mb_default_dtypes": 0.12,
+  "metadata_memory_mb_optimized_dtypes": 0.04,
+  "total_memory_mb_optimized": 50.55
+}

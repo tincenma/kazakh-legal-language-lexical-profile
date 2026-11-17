@@ -60,7 +60,9 @@ kazakh-legal-language-lexical-profile/
 │   └── visualization.py     # Matplotlib plots, word clouds, ER diagram
 ├── sql/
 │   ├── schema.sql           # DDL: 7 tables
-│   └── queries.sql          # 10 analytical queries
+│   ├── queries.sql          # 10 analytical queries
+│   ├── fulltext_schema.sql  # DDL: fulltexts table (menu 10)
+│   └── fulltext_queries.sql # 3 queries on the full-text sample
 ├── data/
 │   ├── stopwords_kk.txt     # Kazakh stop words (plus legal boilerplate)
 │   ├── raw/                 # downloaded CSV (git-ignored)
@@ -95,7 +97,8 @@ Results go to `audit.json`, `missing_values.csv` and `02_missing_values.png`.
 bodies 1──N acts N──1 sections
               │
               ├──N act_areas N──1 areas     (many-to-many)
-              └──N act_forms N──1 forms     (many-to-many)
+              ├──N act_forms N──1 forms     (many-to-many)
+              └──0..1 fulltexts             (downloaded full text, menu 10)
 ```
 
 The ER diagram is drawn to `docs/er_diagram.png`. `sql/queries.sql` holds **10 queries**, each loaded into pandas with `pd.read_sql_query` and saved to `reports/results/sql_*.csv`:
@@ -116,6 +119,14 @@ The ER diagram is drawn to `docs/er_diagram.png`. `sql/queries.sql` holds **10 q
 The SQL results feed the analysis directly:
 - five charts are drawn from the query DataFrames (`figures/15_sql_*` to `19_sql_*`);
 - `summarize_findings()` turns them into the key facts in `sql_findings.json`, which are used in section 6.3.
+
+Menu 10 → 2 adds the `fulltexts` table (`sql/fulltext_schema.sql`, one row per downloaded act, linked to `acts` by `act_id`) and runs **3 more queries** from `sql/fulltext_queries.sql`:
+
+| Query | SQL features |
+|---|---|
+| `fulltext_length_by_section_decade` | CTE + two JOINs + GROUP BY / HAVING |
+| `longest_fulltext_per_decade` | JOIN + `ROW_NUMBER() OVER (PARTITION BY)` in a subquery |
+| `stemming_effect_by_section` | subquery + `RANK()` window |
 
 ### 3.4 Kazakh text preprocessing (`preprocessing.py`)
 Kazakh is agglutinative: заң (law) → заңдар → заңдарының → заңдарынан. Three representations are compared:
@@ -163,6 +174,8 @@ The corpus has no full act texts. adilet.zan.kz has no bulk download, and its ro
 - Before analysis each text is cleaned: the Russian header line ("Закон от …") and dash rulers are removed, and words hyphenated across a line break are joined.
 
 Menu 10 → 2 repeats every analysis on the full texts and compares the two sources on exactly the same acts:
+- **Data quality and storage**: an audit of the sample (coverage, length, very short texts, duplicates, Russian passages; `fulltext_audit.json`), and the cleaned corpus saved as Parquet with compact dtypes, compared with the `.txt` files on size, read time and memory (`fulltext_storage.json`).
+- **SQL**: the full texts are loaded into the `fulltexts` table and queried (section 3.3).
 - **Lexical profile** (as menu 5–6): vocabulary by representation, Zipf and Heaps fits, top words and n-grams, decade shifts, word clouds. Outputs carry the suffix `_full`.
 - **Source comparison** (`fulltext_vs_title.csv`, figure 21): vocabulary size, stemming reduction, Zipf exponent and Heaps β for title + description vs full text; the full texts are also cut to the titles' token count, because vocabulary grows with corpus size.
 - **Models** (as menu 7 and 9): the same four models and the same leakage-free temporal split, trained once on the full texts and once on the title + description of the same acts (`fulltext_vs_title_models.csv`, figure 22), plus error analysis of the full-text model.
@@ -263,9 +276,9 @@ Run the steps in order the first time. Completed steps are marked `[done]` (stor
 | 6 | `try / except` | missing files, broken JSON, invalid menu input, SQL errors, missing stop-word file |
 | 7 | UI | interactive console menu (`main.py`) |
 | 8 | Modularity | `src/` package; `os`, `pathlib`, `datetime`, `json`, `time`, `re`, `sqlite3`, `argparse` |
-| 9 | Approach comparison | 2 baselines vs stems vs char n-grams (quality, time, memory); CSV vs Parquet |
-| 10 | DB and SQL | SQLite, 7 tables, ER diagram, 10 queries with JOIN, HAVING, subqueries, CTEs and windows |
-| 11 | Data volume | 337 MB / 216k rows, chunksize, dtype optimization, Parquet |
+| 9 | Approach comparison | 2 baselines vs stems vs char n-grams (quality, time, memory); CSV vs Parquet; title + description vs full text on the same acts |
+| 10 | DB and SQL | SQLite, 7 tables + `fulltexts`, ER diagram, 13 queries with JOIN, HAVING, subqueries, CTEs and windows |
+| 11 | Data volume | 337 MB / 216k rows, chunksize, dtype optimization, Parquet; full texts: 24 MB of .txt → 7.8 MB Parquet |
 
 ---
 

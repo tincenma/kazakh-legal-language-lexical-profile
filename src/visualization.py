@@ -329,6 +329,8 @@ def draw_er_diagram(path: Path = config.DOCS_DIR / "er_diagram.png") -> Path:
         "areas": (0.88, 0.66, ["area_id PK", "name"]),
         "act_forms": (0.68, 0.16, ["act_id PK/FK", "form_id PK/FK"]),
         "forms": (0.88, 0.16, ["form_id PK", "name"]),
+        "fulltexts": (0.36, 0.02, ["act_id PK/FK", "n_chars, n_tokens", "n_content_types",
+                                   "n_stem_types", "text (cleaned)"]),
     }
     fig, ax = plt.subplots(figsize=(12, 7))
     ax.set_xlim(0, 1.05)
@@ -360,6 +362,12 @@ def draw_er_diagram(path: Path = config.DOCS_DIR / "er_diagram.png") -> Path:
     connect("act_areas", "areas", "N : 1")
     connect("acts", "act_forms", "1 : N")
     connect("act_forms", "forms", "N : 1")
+    # acts -> fulltexts runs vertically (the sample acts with a downloaded full text, menu 10)
+    ax_, ay, aw, _ = boxes["acts"]
+    fx, fy, fw, fh = boxes["fulltexts"]
+    ax.annotate("", xy=(fx + fw / 2, fy + fh), xytext=(ax_ + aw / 2, ay),
+                arrowprops=dict(arrowstyle="-", color="#555", lw=1.2))
+    ax.text(ax_ + aw / 2 + 0.01, (ay + fy + fh) / 2, "1 : 0..1", fontsize=8, color="#555")
     ax.set_title("ER diagram - KazakhLawCorpus (SQLite)", fontsize=13, weight="bold")
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, bbox_inches="tight", dpi=120)

@@ -193,6 +193,17 @@ def run_fulltext_analysis() -> None:
     from src.models import compare_methods
 
     fdf = ft.fulltext_corpus(get_corpus())
+
+    print("\n=== Data quality and storage of the full texts ===")
+    ft.audit_fulltexts(fdf)
+    ft.store_fulltext_parquet(fdf)
+
+    print("\n=== Full texts in SQLite ===")
+    from src.database import load_fulltexts_to_db, run_all_queries
+    load_fulltexts_to_db(fdf)
+    viz.draw_er_diagram()
+    run_all_queries(queries_path=config.SQL_DIR / "fulltext_queries.sql")
+
     try:
         print("\n=== Lexical profile of the full texts ===")
         viz.set_source("_full")

@@ -7,7 +7,7 @@ import pandas as pd
 
 from src import config
 from src.audit import split_multi_value
-from src.preprocessing import tokenize
+from src.preprocessing import remove_stopwords, stem, tokenize
 
 
 def lookup_table(values: pd.Series, id_col: str) -> pd.DataFrame:
@@ -74,6 +74,28 @@ def build_database(df: pd.DataFrame, db_path: Path = config.DB_PATH) -> dict:
     return counts
 
 
+def load_fulltexts_to_db(fdf: pd.DataFrame, db_path: Path = config.DB_PATH) -> int:
+    """Store the cleaned full texts (menu 10) in the `fulltexts` table, linked to `acts` by act_id."""
+    if not db_path.exists():
+        raise FileNotFoundError("Database not found. Run menu item 3 (Build database) first.")
+    with sqlite3.connect(db_path) as conn:
+        ids = pd.read_sql_query("SELECT act_id, law_id FROM acts", conn)
+        rows = fdf[["law_id", "text"]].merge(ids, on="law_id", how="inner")
+        content = rows["text"].map(lambda t: set(remove_stopwords(tokenize(t))))
+        table = pd.DataFrame({
+            "act_id": rows["act_id"],
+            "n_chars": rows["text"].str.len(),
+            "n_tokens": rows["text"].map(lambda t: len(tokenize(t))),
+            "n_content_types": content.map(len),
+            "n_stem_types": content.map(lambda forms: len({stem(w) for w in forms})),
+            "text": rows["text"],
+        })
+        conn.executescript((config.SQL_DIR / "fulltext_schema.sql").read_text(encoding="utf-8"))
+        table.to_sql("fulltexts", conn, if_exists="append", index=False, chunksize=500)
+    print(f"Loaded {len(table)} full texts into the fulltexts table ({db_path.name}).")
+    return len(table)
+
+
 def parse_queries(path: Path = config.SQL_DIR / "queries.sql") -> list[dict]:
     """Split queries.sql into a list of {name, description, sql}."""
     text = path.read_text(encoding="utf-8")
@@ -128,10 +150,11 @@ def summarize_findings(results: dict[str, pd.DataFrame]) -> dict:
     return findings
 
 
-def run_all_queries(db_path: Path = config.DB_PATH, save: bool = True) -> dict[str, pd.DataFrame]:
-    """Run every query in queries.sql, print a preview and save each result as CSV."""
+def run_all_queries(db_path: Path = config.DB_PATH, save: bool = True,
+                    queries_path: Path = config.SQL_DIR / "queries.sql") -> dict[str, pd.DataFrame]:
+    """Run every query in a .sql file (queries.sql by default), print a preview, save each as CSV."""
     results = {}
-    for q in parse_queries():
+    for q in parse_queries(queries_path):
         try:
             df = run_query(q["sql"], db_path)
         except sqlite3.Error as e:
