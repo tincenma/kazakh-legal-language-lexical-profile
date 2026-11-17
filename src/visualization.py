@@ -163,7 +163,8 @@ def plot_wordclouds(top_by_decade: dict) -> Path | None:
         freqs = dict(top_by_decade[decade])
         if freqs:
             wc = WordCloud(width=600, height=360, background_color="white", font_path=font,
-                           colormap="viridis").generate_from_frequencies(freqs)
+                           colormap="viridis", random_state=config.RANDOM_STATE
+                           ).generate_from_frequencies(freqs)
             ax.imshow(wc, interpolation="bilinear")
         ax.set_title(f"{decade}s")
         ax.axis("off")

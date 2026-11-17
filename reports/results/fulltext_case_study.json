@@ -1,11 +1,11 @@
 {
   "acts": 548,
   "median_short_tokens": 25.0,
-  "median_full_tokens": 497.5,
+  "median_full_tokens": 496.0,
   "median_length_ratio": 20.5,
   "mean_title_coverage_pct": 96.2,
-  "mean_stem_reduction_pct_fulltext": 17.3,
+  "mean_stem_reduction_pct_fulltext": 17.4,
   "title_accuracy": 0.708,
-  "fulltext_accuracy": 0.577,
-  "same_prediction_pct": 59.7
+  "fulltext_accuracy": 0.578,
+  "same_prediction_pct": 60.0
 }

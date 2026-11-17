@@ -25,7 +25,7 @@ DB_PATH = PROCESSED_DIR / "kazakh_law.db"
 STOPWORDS_PATH = DATA_DIR / "stopwords_kk.txt"
 STATE_PATH = RESULTS_DIR / "state.json"
 
-# Full-text case study: sample acts downloaded from adilet.zan.kz, one <law_id>.txt per act.
+# Full-text analysis: sample acts downloaded from adilet.zan.kz, one <law_id>.txt per act.
 FULLTEXT_DIR = DATA_DIR / "fulltext"
 FULLTEXT_SAMPLE_PATH = FULLTEXT_DIR / "sample_to_collect.csv"
 

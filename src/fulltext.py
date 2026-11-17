@@ -1,15 +1,15 @@
-"""Full-text case study on a small stratified sample of acts.
+"""Full texts of a stratified sample of acts, and their comparison with title + description.
 
-The corpus holds only titles and short descriptions. To check how well they represent an act,
-the full texts of a small stratified sample are downloaded from adilet.zan.kz (src/fetch_pdfs.py)
-and saved as data/fulltext/<law_id>.txt. This module then compares the full text with the
-title + description of the same act: length, vocabulary, overlap, and the section the best
-model predicts from each.
+The corpus holds only titles and short descriptions. The full texts of a stratified sample are
+downloaded from adilet.zan.kz (src/fetch_pdfs.py) and saved as data/fulltext/<law_id>.txt.
 
 Workflow:
-  1. make_sample()      -> data/fulltext/sample_to_collect.csv (which acts to fetch)
+  1. make_sample()            -> data/fulltext/sample_to_collect.csv (which acts to fetch)
   2. python -m src.fetch_pdfs -> data/fulltext/<law_id>.txt (or copy a text by hand, UTF-8)
-  3. run_case_study()   -> reports/results/fulltext_case_study.csv + .json, two figures
+  3. fulltext_corpus()        -> the sampled acts with their cleaned full text as `text`, which
+                                 main.run_fulltext_analysis() sends through every analysis step
+  4. compare_sources()        -> title + description vs full text on the same acts (figure 21)
+  5. run_case_study()         -> per-act comparison (figure 20)
 """
 import random
 import re
@@ -67,7 +67,7 @@ def make_sample(df: pd.DataFrame, per_cell: int = PER_CELL, n_sections: int = N_
     print(f"{len(out)} acts to collect ({out['collected'].sum()} already collected) -> {config.FULLTEXT_SAMPLE_PATH}")
     print(f"Split: {per_person}")
     print("Download the texts with  python -m src.fetch_pdfs  (see data/fulltext/README.md), "
-          "then run the case study.")
+          "then run the full-text analysis (menu 10 -> 2).")
     return out
 
 
@@ -247,6 +247,7 @@ def run_case_study(df: pd.DataFrame) -> pd.DataFrame:
     for law_id, full_text in texts.items():
         if law_id not in meta.index:
             continue
+        full_text = clean_fulltext(full_text)      # same cleaning as the rest of the full-text analysis
         act = meta.loc[law_id]
         row = {"law_id": law_id, "decade": act.get("decade"),
                "section": str(act.get(config.TARGET_COLUMN)), **compare_act(act["text"], full_text)}
@@ -276,7 +277,7 @@ def run_case_study(df: pd.DataFrame) -> pd.DataFrame:
     save_json(summary, config.RESULTS_DIR / "fulltext_case_study.json")
     plot_case_study(table)
 
-    print(f"Full-text case study on {summary['acts']} acts:")
+    print(f"Per-act comparison on {summary['acts']} acts:")
     for key, value in summary.items():
         print(f"  {key:<34} {value}")
     if summary["acts"] < 20:

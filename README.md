@@ -55,7 +55,7 @@ kazakh-legal-language-lexical-profile/
 │   ├── lexical.py           # vocabulary sizes, Zipf/Heaps fits, n-grams, decade comparison
 │   ├── models.py            # baselines vs methods, leakage-free split, metrics
 │   ├── error_analysis.py    # confusions, errors by text length and year
-│   ├── fulltext.py          # full-text case study: sample list, title vs full-text comparison
+│   ├── fulltext.py          # full-text sample: list, cleaning, title vs full-text comparison
 │   ├── fetch_pdfs.py        # downloads the sample's PDFs from adilet.zan.kz with Playwright
 │   └── visualization.py     # Matplotlib plots, word clouds, ER diagram
 ├── sql/

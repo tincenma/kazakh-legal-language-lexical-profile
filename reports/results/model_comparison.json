@@ -17,7 +17,7 @@
   "best_model": "char_ngram_tfidf",
   "comparison": {
     "baseline_majority": {
-      "fit_time_s": 0.087,
+      "fit_time_s": 0.089,
       "fit_peak_mem_mb": 4.21,
       "predict_time_s": 0.001,
       "predict_peak_mem_mb": 1.73,
@@ -27,9 +27,9 @@
       "n_features": 0
     },
     "baseline_wordform_tfidf": {
-      "fit_time_s": 62.933,
-      "fit_peak_mem_mb": 58.69,
-      "predict_time_s": 6.58,
+      "fit_time_s": 36.403,
+      "fit_peak_mem_mb": 58.7,
+      "predict_time_s": 6.308,
       "predict_peak_mem_mb": 68.4,
       "f1_macro": 0.5728,
       "f1_weighted": 0.7634,
@@ -37,19 +37,19 @@
       "n_features": 18812
     },
     "stem_tfidf": {
-      "fit_time_s": 31.444,
-      "fit_peak_mem_mb": 51.17,
-      "predict_time_s": 6.59,
-      "predict_peak_mem_mb": 66.67,
+      "fit_time_s": 31.593,
+      "fit_peak_mem_mb": 57.2,
+      "predict_time_s": 6.738,
+      "predict_peak_mem_mb": 67.67,
       "f1_macro": 0.5721,
       "f1_weighted": 0.7609,
       "accuracy": 0.762,
       "n_features": 10916
     },
     "char_ngram_tfidf": {
-      "fit_time_s": 244.246,
+      "fit_time_s": 248.574,
       "fit_peak_mem_mb": 1029.44,
-      "predict_time_s": 177.329,
+      "predict_time_s": 180.172,
       "predict_peak_mem_mb": 718.61,
       "f1_macro": 0.5821,
       "f1_weighted": 0.7638,
