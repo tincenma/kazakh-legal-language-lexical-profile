@@ -1,5 +1,5 @@
 model,f1_title,f1_full,fit_time_title_s,fit_time_full_s,mem_title_mb,mem_full_mb
-baseline_majority,0.0236,0.0236,0.001,0.001,0.02,0.03
-baseline_wordform_tfidf,0.5433,0.7135,0.039,2.318,0.47,56.82
-stem_tfidf,0.6014,0.7189,0.041,2.378,0.35,53.38
-char_ngram_tfidf,0.6145,0.7204,0.394,32.944,6.03,570.71
+baseline_majority,0.0236,0.0236,0.001,0.001,0.02,0.02
+baseline_wordform_tfidf,0.5676,0.721,0.048,2.746,0.53,56.64
+stem_tfidf,0.5977,0.7416,0.049,2.774,0.29,53.39
+char_ngram_tfidf,0.6219,0.7331,0.388,33.871,6.1,571.46

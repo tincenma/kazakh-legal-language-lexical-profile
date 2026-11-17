@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 from src import config
-from src.preprocessing import STOPWORDS, remove_stopwords, stem, tokenize
+from src.preprocessing import STOPWORDS, fix_lookalikes, remove_stopwords, stem, tokenize
 from src.utils import df_memory_mb, file_size_mb, save_json
 
 PER_CELL = 3                 # acts per (decade, section) cell
@@ -98,7 +98,7 @@ FULLTEXT_MIN_SUPPORT = 20     # acts per section needed in the training part of 
 def clean_fulltext(text: str) -> str:
     """Remove the Russian header line and dash rulers left over from the PDF layout, and join words
     hyphenated across a line break ("бағ-" + "дарлама" -> "бағдарлама")."""
-    text = RUSSIAN_HEADER.sub("", text)
+    text = RUSSIAN_HEADER.sub("", fix_lookalikes(text))
     text = re.sub(r"([а-яәғқңөұүһі])-\n([а-яәғқңөұүһі])", r"\1\2", text, flags=re.IGNORECASE)
     text = re.sub(r"^-{5,}$", "", text, flags=re.MULTILINE)
     return re.sub(r"\n{2,}", "\n", text).strip()

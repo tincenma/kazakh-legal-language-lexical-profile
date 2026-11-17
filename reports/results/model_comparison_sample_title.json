@@ -27,96 +27,96 @@
       "n_features": 0
     },
     "baseline_wordform_tfidf": {
-      "fit_time_s": 0.039,
-      "fit_peak_mem_mb": 0.47,
-      "predict_time_s": 0.015,
+      "fit_time_s": 0.048,
+      "fit_peak_mem_mb": 0.53,
+      "predict_time_s": 0.019,
       "predict_peak_mem_mb": 0.09,
-      "f1_macro": 0.5433,
-      "f1_weighted": 0.5385,
-      "accuracy": 0.5665,
-      "n_features": 745
+      "f1_macro": 0.5676,
+      "f1_weighted": 0.5619,
+      "accuracy": 0.5896,
+      "n_features": 696
     },
     "stem_tfidf": {
-      "fit_time_s": 0.041,
-      "fit_peak_mem_mb": 0.35,
-      "predict_time_s": 0.017,
+      "fit_time_s": 0.049,
+      "fit_peak_mem_mb": 0.29,
+      "predict_time_s": 0.019,
       "predict_peak_mem_mb": 0.09,
-      "f1_macro": 0.6014,
-      "f1_weighted": 0.5954,
+      "f1_macro": 0.5977,
+      "f1_weighted": 0.5919,
       "accuracy": 0.6069,
-      "n_features": 645
+      "n_features": 592
     },
     "char_ngram_tfidf": {
-      "fit_time_s": 0.394,
-      "fit_peak_mem_mb": 6.03,
-      "predict_time_s": 0.345,
-      "predict_peak_mem_mb": 1.37,
-      "f1_macro": 0.6145,
-      "f1_weighted": 0.6164,
-      "accuracy": 0.6301,
-      "n_features": 6028
+      "fit_time_s": 0.388,
+      "fit_peak_mem_mb": 6.1,
+      "predict_time_s": 0.355,
+      "predict_peak_mem_mb": 1.38,
+      "f1_macro": 0.6219,
+      "f1_weighted": 0.6239,
+      "accuracy": 0.6416,
+      "n_features": 6031
     }
   },
   "per_class_best": {
     "Ауыл шаруашылығы": {
-      "precision": 1.0,
+      "precision": 0.8571428571428571,
       "recall": 0.25,
-      "f1-score": 0.4,
+      "f1-score": 0.3870967741935484,
       "support": 24.0
     },
     "Білім": {
-      "precision": 0.8181818181818182,
-      "recall": 0.782608695652174,
-      "f1-score": 0.8,
+      "precision": 0.7391304347826086,
+      "recall": 0.7391304347826086,
+      "f1-score": 0.7391304347826086,
       "support": 23.0
     },
     "Еңбек": {
-      "precision": 0.7916666666666666,
-      "recall": 0.6785714285714286,
-      "f1-score": 0.7307692307692307,
+      "precision": 0.7777777777777778,
+      "recall": 0.75,
+      "f1-score": 0.7636363636363637,
       "support": 28.0
     },
     "Конституциялық құрылыс және мемлекеттік басқару негіздері": {
-      "precision": 0.5833333333333334,
-      "recall": 0.35,
-      "f1-score": 0.4375,
+      "precision": 0.7272727272727273,
+      "recall": 0.4,
+      "f1-score": 0.5161290322580645,
       "support": 20.0
     },
     "Халықаралық қатынастар": {
-      "precision": 1.0,
+      "precision": 0.9411764705882353,
       "recall": 0.8888888888888888,
-      "f1-score": 0.9411764705882353,
+      "f1-score": 0.9142857142857143,
       "support": 18.0
     },
     "Шаруашылық қызмет": {
-      "precision": 0.22727272727272727,
+      "precision": 0.25,
       "recall": 0.2631578947368421,
-      "f1-score": 0.24390243902439024,
+      "f1-score": 0.2564102564102564,
       "support": 19.0
     },
     "Қаржы": {
-      "precision": 0.5116279069767442,
+      "precision": 0.5365853658536586,
       "recall": 0.9565217391304348,
-      "f1-score": 0.6666666666666666,
+      "f1-score": 0.6875,
       "support": 23.0
     },
     "Әлеуметтік қамсыздандыру. Сақтандыру": {
-      "precision": 0.5714285714285714,
+      "precision": 0.5925925925925926,
       "recall": 0.8888888888888888,
-      "f1-score": 0.6956521739130435,
+      "f1-score": 0.7111111111111111,
       "support": 18.0
     },
-    "accuracy": 0.630057803468208,
+    "accuracy": 0.6416184971098265,
     "macro avg": {
-      "precision": 0.6879388779824827,
-      "recall": 0.6323296919835821,
-      "f1-score": 0.6144583726201958,
+      "precision": 0.6777097782513071,
+      "recall": 0.6420734808034579,
+      "f1-score": 0.6219124608347084,
       "support": 173.0
     },
     "weighted avg": {
-      "precision": 0.6995540642536207,
-      "recall": 0.630057803468208,
-      "f1-score": 0.6164273626436891,
+      "precision": 0.6855142626968205,
+      "recall": 0.6416184971098265,
+      "f1-score": 0.6239084343153894,
       "support": 173.0
     }
   }

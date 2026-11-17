@@ -5,15 +5,15 @@
   "texts_not_in_corpus": [],
   "tokens": {
     "min": 22,
-    "median": 572.5,
-    "mean": 2689.1,
-    "max": 396678
+    "median": 536.0,
+    "mean": 2657.8,
+    "max": 396569
   },
-  "very_short_acts_lt_50_tokens": 8,
+  "very_short_acts_lt_50_tokens": 9,
   "duplicate_texts": 0,
   "russian_header_lines_removed": 373,
   "hyphenated_line_breaks_joined": 1849,
-  "acts_with_russian_passages_gt_2pct": 11,
+  "acts_with_russian_passages_gt_2pct": 5,
   "acts_per_decade": {
     "1990": 136,
     "2000": 130,

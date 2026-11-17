@@ -9,7 +9,7 @@ import pandas as pd
 from nltk.util import ngrams
 
 from src import config
-from src.preprocessing import KAZAKH_LETTERS, STOPWORDS, char_ngrams, stem, tokenize
+from src.preprocessing import KAZAKH_LETTERS, STOPWORDS, char_ngrams, fix_lookalikes, stem, tokenize
 from src.utils import load_json, save_json, tagged
 
 MIN_DOCS_PER_DECADE = 300     # decades with fewer acts are too small to compare reliably
@@ -37,14 +37,14 @@ def extract_toponyms(df: pd.DataFrame, min_count: int = 3, tag: str = "") -> set
         if col not in df:
             continue
         for value in df[col].dropna().astype(str):
-            for name in TOPONYM_RE.findall(value):
+            for name in TOPONYM_RE.findall(fix_lookalikes(value)):
                 counts[stem(name.lower())] += 1
     candidates = {t for t, c in counts.items() if c >= min_count and t not in NOT_TOPONYMS}
 
     upper, lower = Counter(), Counter()
     word_re = re.compile(rf"(?<![.!?]\s)\b([{KAZAKH_LETTERS}А-ЯЁӘҒҚҢӨҰҮҺІ][{KAZAKH_LETTERS}]+)")
     for text in df["text"].dropna():
-        for i, w in enumerate(word_re.findall(text)):
+        for i, w in enumerate(word_re.findall(fix_lookalikes(text))):
             if i == 0:
                 continue                       # sentence start is always capitalized
             s = stem(w.lower())

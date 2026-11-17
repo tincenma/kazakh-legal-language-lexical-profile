@@ -14,6 +14,21 @@ from src import config
 KAZAKH_LETTERS = "а-яёәғқңөұүһі"
 TOKEN_RE = re.compile(rf"[{KAZAKH_LETTERS}]+(?:-[{KAZAKH_LETTERS}]+)*")
 
+# Older acts often type a Latin letter that looks like a Cyrillic one, most often Latin "i" for
+# Kazakh "і" ("жөнiндегi"). The tokenizer accepts only Cyrillic, so such words were cut apart.
+# A Latin look-alike is replaced only when it touches a Cyrillic letter, so real Latin words stay.
+LOOKALIKES = {"i": "і", "a": "а", "e": "е", "o": "о", "p": "р", "c": "с", "x": "х", "y": "у",
+              "k": "к", "h": "һ", "I": "І", "A": "А", "E": "Е", "O": "О", "P": "Р", "C": "С",
+              "X": "Х", "Y": "У", "K": "К", "H": "Н", "T": "Т", "M": "М", "B": "В"}
+_CYRILLIC = "А-ЯЁӘҒҚҢӨҰҮҺІа-яёәғқңөұүһі"
+_LATIN = "".join(LOOKALIKES)
+LOOKALIKE_RE = re.compile(rf"(?<=[{_CYRILLIC}])[{_LATIN}]+|[{_LATIN}]+(?=[{_CYRILLIC}])")
+
+
+def fix_lookalikes(text: str) -> str:
+    """Replace Latin look-alike letters inside Cyrillic words with the Cyrillic letter."""
+    return LOOKALIKE_RE.sub(lambda m: "".join(LOOKALIKES[c] for c in m.group()), text)
+
 # Suffixes grouped by grammatical role. Stripping goes from the end of the word
 # (case -> possessive -> plural -> derivational), always taking the longest match.
 CASE_SUFFIXES = [
@@ -55,10 +70,12 @@ STOPWORDS = load_stopwords()
 
 
 def tokenize(text: str) -> list[str]:
-    """Lower-case and keep Kazakh/Cyrillic words of 2+ letters (numbers and Latin dropped)."""
+    """Lower-case and keep Kazakh/Cyrillic words of 2+ letters (numbers and Latin dropped).
+
+    Latin look-alike letters inside Cyrillic words are fixed first (see fix_lookalikes)."""
     if not isinstance(text, str):
         return []
-    return [t for t in TOKEN_RE.findall(text.lower()) if len(t) > 1]
+    return [t for t in TOKEN_RE.findall(fix_lookalikes(text).lower()) if len(t) > 1]
 
 
 def remove_stopwords(tokens: list[str], stopwords: set[str] = STOPWORDS) -> list[str]:

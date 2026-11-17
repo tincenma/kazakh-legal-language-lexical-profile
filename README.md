@@ -135,6 +135,8 @@ Kazakh is agglutinative: заң (law) → заңдар → заңдарының 
 2. **Suffix stems**: a rule-based stripper that removes one suffix per group, from the outside in: case → possessive → plural → derivational. It also reverses consonant alternation (кітабы → кітап, министрлігі → министрлік) and keeps a short exception list (қазақстан).
 3. **Character 3–5-grams**: sub-word units with word-boundary marks, which catch shared morphemes without any rules.
 
+Before tokenizing, Latin letters that look like Cyrillic ones are replaced when they sit inside a Cyrillic word. Older acts often type a Latin "i" for the Kazakh "і" ("жөнiндегi"): this affects 29,462 titles (14%) and 300 of the 548 full texts, and without the fix those words were cut into fragments.
+
 ### 3.5 Lexical profile (`lexical.py`)
 - **Vocabulary size** for each representation (types, tokens, type/token ratio, hapax share), showing how much stemming shrinks the vocabulary.
 - **Zipf's law**: a rank–frequency log–log plot with a least-squares exponent *s* and R², for the whole corpus and for each decade.
@@ -147,7 +149,7 @@ Decades with fewer than 300 acts are left out of the comparisons.
 **Place-name filter.** Many acts are decisions of district councils, so village and district names would swamp the decade comparison.
 - `extract_toponyms()` finds capitalized words placed right before an administrative unit word (*Шиелі ауданы*, *Достық ауылдық округі*).
 - A candidate is kept only if the corpus almost never writes it in lower case. This keeps common words such as *еңбек* (labour) out of the list.
-- The resulting 2,091 place-name stems (`toponyms.txt`) are removed from the decade shifts, per-decade top words, bigrams and word clouds. Vocabulary and Zipf statistics use all words.
+- The resulting 2,095 place-name stems (`toponyms.txt`) are removed from the decade shifts, per-decade top words, bigrams and word clouds. Vocabulary and Zipf statistics use all words.
 
 ### 3.6 Method comparison (`models.py`, requirement 9 and cluster tasks)
 - **Task:** predict an act's `database_section` (its thematic section) from title + description.
@@ -320,29 +322,29 @@ Taken from `sql_findings.json` and the `sql_*` charts:
 
 | Representation | Types | Tokens | Hapax % | Types vs word forms |
 |---|---|---|---|---|
-| word forms (all) | 36,931 | 7.47 M | 34.4 | 100.3% |
-| word forms (no stop words) | 36,829 | 5.86 M | 34.5 | 100% |
-| **suffix stems** | **21,830** | 5.86 M | 35.6 | **59.3%** |
-| char 3–5-grams | 109,725 | 126.7 M | 26.8 | 297.9% |
+| word forms (all) | 35,455 | 7.42 M | 34.3 | 100.3% |
+| word forms (no stop words) | 35,357 | 5.81 M | 34.3 | 100% |
+| **suffix stems** | **20,412** | 5.81 M | 35.4 | **57.7%** |
+| char 3–5-grams | 108,586 | 127.5 M | 26.9 | 307.1% |
 
-**Stemming reduces the vocabulary by 41%.** About 1.7 word forms map to each stem, which shows how much of Kazakh vocabulary growth comes from inflection.
+**Stemming reduces the vocabulary by 42%.** About 1.7 word forms map to each stem, which shows how much of Kazakh vocabulary growth comes from inflection.
 
 ### 6.5 Zipf's and Heaps' laws
 
 | Corpus slice | Zipf *s* | R² |
 |---|---|---|
 | all word forms | 1.75 | 0.987 |
-| all stems | 1.91 | 0.981 |
-| 1990s | 1.27 | 0.992 |
-| 2000s | 1.43 | 0.990 |
+| all stems | 1.92 | 0.981 |
+| 1990s | 1.21 | 0.992 |
+| 2000s | 1.43 | 0.991 |
 | 2010s | 1.67 | 0.987 |
-| 2020s | 1.65 | 0.985 |
+| 2020s | 1.66 | 0.985 |
 
 - **The fit is good but steep.** The distribution follows a power law closely (R² ≥ 0.98), but *s* is well above the classic 1.0. Titles and descriptions are short and formulaic, so a few legal terms take a very large share of tokens.
 - **The exponent rises across decades.** Legal language became more standardized over time, as template acts by local councils grew in number.
-- **Heaps' law:** V = 143·N^0.355. The vocabulary grows slowly, which is typical of a controlled register.
+- **Heaps' law:** V = 180·N^0.337. The vocabulary grows slowly, which is typical of a controlled register.
 - **Top bigrams:** *қазақстан республикасы*, *аудандық мәслихатының*, *күші жойылды* ("repealed"), *мәслихатының шешімі* ("decision of the council"), *әділет департаментінде* ("at the justice department").
-- **Place names grow sharply.** They make up 0.7% of content words in the 1990s, 3.7% in the 2000s, 9.1% in the 2010s and 10.5% in the 2020s. This confirms that district and village councils became a major source of legal acts, which also explains the rising Zipf exponent.
+- **Place names grow sharply.** They make up 0.8% of content words in the 1990s, 3.8% in the 2000s, 9.2% in the 2010s and 10.5% in the 2020s. This confirms that district and village councils became a major source of legal acts, which also explains the rising Zipf exponent.
 
 **Decade shifts after removing place names** (`reports/results/lexical_profile.json`):
 
@@ -360,20 +362,20 @@ Split: train 107,441 acts (≤ 2017), test 90,597 acts (≥ 2018). 17,280 test a
 | Model | F1-macro | Accuracy | Fit time | Predict time | Peak memory (fit) | Features |
 |---|---|---|---|---|---|---|
 | baseline_majority | 0.017 | 0.388 | 0.1 s | 0.0 s | 4 MB | – |
-| baseline_wordform_tfidf | 0.573 | 0.765 | 63 s | 7 s | 59 MB | 18,812 |
-| stem_tfidf | 0.572 | 0.762 | 31 s | 7 s | 51 MB | 10,916 |
-| **char_ngram_tfidf** | **0.582** | **0.765** | 244 s | 177 s | 1,029 MB | 55,097 |
+| baseline_wordform_tfidf | 0.574 | 0.765 | 36 s | 8 s | 58 MB | 18,043 |
+| stem_tfidf | 0.573 | 0.763 | 33 s | 8 s | 50 MB | 10,118 |
+| **char_ngram_tfidf** | **0.580** | **0.764** | 263 s | 183 s | 1,037 MB | 54,382 |
 
 Times are wall-clock times from one run and vary between runs; memory and quality are stable.
 
-- **Char n-grams win, narrowly.** They have the best F1-macro (+0.9 pt over word forms), but cost 4–8× the training time, about 25× the prediction time and 17× the memory.
-- **Stemming matches word forms with fewer features.** It reaches the same quality with 42% fewer features and less memory, so it is the most efficient choice.
+- **Char n-grams win, narrowly.** They have the best F1-macro (+0.5 pt over word forms), but cost 7–8× the training time, about 23× the prediction time and 18× the memory.
+- **Stemming matches word forms with fewer features.** It reaches the same quality with 44% fewer features and less memory, so it is the most efficient choice.
 - **Recommendation:** use char n-grams when quality matters most, and stems when resources are limited.
 
 ### 6.7 Error analysis (char n-gram model)
-- The error rate is **23.5%**. Most errors come from the broad section *Конституциялық құрылыс және мемлекеттік басқару* (constitutional order and public administration), which is confused with Finance, Labour and Security. Its acts cover every topic.
-- Very short texts (6–10 tokens) fail **75%** of the time. Long texts (40+ tokens) also fail more often (30% vs 18–21%), because they mix several subjects.
-- The word-form and char models disagree on only about 4% of test acts (1,756 vs 1,810 won by each), so the two representations make similar errors.
+- The error rate is **23.6%**. Most errors come from the broad section *Конституциялық құрылыс және мемлекеттік басқару* (constitutional order and public administration), which is confused with Finance, Labour and Security. Its acts cover every topic.
+- Very short texts (6–10 tokens) fail **74%** of the time. Long texts (40+ tokens) also fail more often (31% vs 18–21%), because they mix several subjects.
+- The word-form and char models disagree on only about 4% of test acts (1,801 vs 1,665 won by each), so the two representations make similar errors.
 
 ### 6.8 Limitations
 - The corpus contains only titles and short descriptions, not full act texts.

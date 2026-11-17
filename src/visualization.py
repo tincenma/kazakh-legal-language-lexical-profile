@@ -49,7 +49,7 @@ def _save(fig, name: str) -> Path:
         label = SOURCE_LABELS.get(SOURCE_TAG, SOURCE_TAG.strip("_"))
         for ax in fig.axes:
             if ax.get_title():
-                ax.set_title(f"{ax.get_title()} ({label})")
+                ax.set_title(f"{ax.get_title()} – {label}")
         name = f"{name}{SOURCE_TAG}"
     path = config.FIGURES_DIR / f"{name}.png"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -185,17 +185,16 @@ def plot_source_comparison(table: pd.DataFrame, curves: dict) -> Path:
     """Title + description vs full text on the same acts: vocabulary/stemming and vocabulary growth."""
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
     names = [n for n in table.index if pd.notna(table.loc[n, "wordform_types"])]
-    x = np.arange(len(names))
     forms = table.loc[names, "wordform_types"].astype(float)
     stems = table.loc[names, "stem_types"].astype(float)
-    b1 = axes[0].bar(x - 0.2, forms, 0.4, label="word forms", color="#7a9cc6")
-    b2 = axes[0].bar(x + 0.2, stems, 0.4, label="suffix stems", color="#dd8452")
-    axes[0].bar_label(b1, labels=[f"{v:,.0f}" for v in forms], fontsize=7)
     reduction = table.loc[names, "stem_reduction_pct"].astype(float)
-    axes[0].bar_label(b2, labels=[f"{v:,.0f}\n(-{r:.0f}%)" for v, r in zip(stems, reduction)], fontsize=7)
-    axes[0].set_xticks(x, [n.replace(", ", ",\n") for n in names], fontsize=8)
-    axes[0].set(title="Vocabulary and the effect of stemming (same acts)", ylabel="distinct content units")
-    axes[0].legend(fontsize=8)
+    bars = axes[0].bar(range(len(names)), reduction, color=["#7a9cc6", "#2a6f97", "#dd8452"][:len(names)])
+    axes[0].bar_label(bars, labels=[f"-{r:.1f}%\n{f:,.0f} → {s:,.0f}" for r, f, s in zip(reduction, forms, stems)],
+                      fontsize=8)
+    axes[0].set_xticks(range(len(names)), [n.replace(", ", ",\n") for n in names], fontsize=8)
+    axes[0].set_ylim(0, max(reduction) * 1.3)
+    axes[0].set(title="How much suffix stemming shrinks the vocabulary (same acts)",
+                ylabel="% fewer distinct units (word forms → stems)")
     for (name, curve), color in zip(curves.items(), ["#2a6f97", "#c44e52"]):
         c = np.array(curve, dtype=float)
         axes[1].loglog(c[:, 0], c[:, 1], "-", color=color, label=name)
