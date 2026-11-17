@@ -1,0 +1,115 @@
+{
+  "model": "char_ngram_tfidf",
+  "test_rows": 173,
+  "error_rate": 0.2717,
+  "top_confusions": [
+    {
+      "label": "Ауыл шаруашылығы",
+      "pred_char_ngram_tfidf": "Шаруашылық қызмет",
+      "count": 7
+    },
+    {
+      "label": "Білім",
+      "pred_char_ngram_tfidf": "Әлеуметтік қамсыздандыру. Сақтандыру",
+      "count": 5
+    },
+    {
+      "label": "Еңбек",
+      "pred_char_ngram_tfidf": "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+      "count": 5
+    },
+    {
+      "label": "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+      "pred_char_ngram_tfidf": "Шаруашылық қызмет",
+      "count": 4
+    },
+    {
+      "label": "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+      "pred_char_ngram_tfidf": "Қаржы",
+      "count": 3
+    },
+    {
+      "label": "Әлеуметтік қамсыздандыру. Сақтандыру",
+      "pred_char_ngram_tfidf": "Еңбек",
+      "count": 2
+    },
+    {
+      "label": "Қаржы",
+      "pred_char_ngram_tfidf": "Шаруашылық қызмет",
+      "count": 2
+    },
+    {
+      "label": "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+      "pred_char_ngram_tfidf": "Білім",
+      "count": 2
+    },
+    {
+      "label": "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+      "pred_char_ngram_tfidf": "Еңбек",
+      "count": 2
+    },
+    {
+      "label": "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+      "pred_char_ngram_tfidf": "Әлеуметтік қамсыздандыру. Сақтандыру",
+      "count": 2
+    },
+    {
+      "label": "Шаруашылық қызмет",
+      "pred_char_ngram_tfidf": "Ауыл шаруашылығы",
+      "count": 2
+    },
+    {
+      "label": "Шаруашылық қызмет",
+      "pred_char_ngram_tfidf": "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+      "count": 2
+    },
+    {
+      "label": "Білім",
+      "pred_char_ngram_tfidf": "Конституциялық құрылыс және мемлекеттік басқару негіздері",
+      "count": 1
+    },
+    {
+      "label": "Еңбек",
+      "pred_char_ngram_tfidf": "Халықаралық қатынастар",
+      "count": 1
+    },
+    {
+      "label": "Халықаралық қатынастар",
+      "pred_char_ngram_tfidf": "Әлеуметтік қамсыздандыру. Сақтандыру",
+      "count": 1
+    }
+  ],
+  "error_by_length": [
+    {
+      "length": "1-150",
+      "n": 23,
+      "error_rate": 0.609
+    },
+    {
+      "length": "151-300",
+      "n": 30,
+      "error_rate": 0.267
+    },
+    {
+      "length": "301-600",
+      "n": 30,
+      "error_rate": 0.2
+    },
+    {
+      "length": "601-1500",
+      "n": 40,
+      "error_rate": 0.25
+    },
+    {
+      "length": "1500+",
+      "n": 50,
+      "error_rate": 0.18
+    }
+  ],
+  "wordform_vs_char": {
+    "only_wordform_correct": 4,
+    "only_char_correct": 6,
+    "both_correct": 120,
+    "both_wrong": 43
+  }
+}

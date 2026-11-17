@@ -1,0 +1,5 @@
+model,fit_time_s,fit_peak_mem_mb,predict_time_s,predict_peak_mem_mb,f1_macro,f1_weighted,accuracy,n_features
+baseline_majority,0.001,0.02,0.0,0.02,0.0236,0.0196,0.104,0
+baseline_wordform_tfidf,0.04,0.5,0.017,0.09,0.5433,0.5385,0.5665,745
+stem_tfidf,0.04,0.35,0.016,0.09,0.6014,0.5954,0.6069,645
+char_ngram_tfidf,0.365,6.03,0.349,1.37,0.6145,0.6164,0.6301,6028

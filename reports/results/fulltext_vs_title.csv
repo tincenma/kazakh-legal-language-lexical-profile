@@ -1,0 +1,4 @@
+﻿,acts,tokens,tokens_per_act,wordform_types,stem_types,stem_reduction_pct,char_ngram_types,hapax_pct,zipf_s,zipf_r2,heaps_K,heaps_beta
+title + description,548.0,18509.0,33.8,2377.0,1710.0,28.1,16079.0,53.1,1.032,0.9872,3.56,0.671
+full text,548.0,1473621.0,2689.1,73257.0,43631.0,40.4,170200.0,40.4,1.291,0.9786,5.33,0.67
+"full text, cut to title size",,14705.0,,2503.0,1523.0,39.2,,,,,,
