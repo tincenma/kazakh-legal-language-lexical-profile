@@ -350,7 +350,7 @@ Taken from `sql_findings.json` and the `sql_*` charts:
 
 | Period | Rising / new terms | Falling terms |
 |---|---|---|
-| 1990s → 2000s | *кесімдерді* (acts), *тізіліміне* (to the register), *заңнамалық* (legislative), *ратификациялау* (ratification), *паспорттарын*, *өңірлік* (regional) | Soviet-era abbreviations (*ҚРҮ*, *ҚРМК*), *кабинет* (Cabinet of Ministers), *контракт*, *борыштар* (debts) |
+| 1990s → 2000s | *кесімдерді* (acts), *тізіліміне* (to the register), *заңнамалық* (legislative), *ратификациялау* (ratification), *паспорттарын*, *өңірлік* (regional) | Soviet-era abbreviations (*ҚРҮ*, *ҚРМК*), *кабинетінің* (of the Cabinet of Ministers), *борыштар* (debts) |
 | 2000s → 2010s | *пробация* (probation), *одақтың* (Eurasian Union), *регламенттерін* (regulations), *жайылымдарды* (pastures), *қауымдық* (community) | *рыногын* (Russian-style "market"), *абоненттеріне*, *борышкерлермен* (debtors) |
 | 2010s → 2020s | *қасбеттерін* (facades), *шатырларын* (roofs), *сәулеттік* (architectural), *келбет* (appearance), *пикеттеуді* (picketing), *сұрыптауға* (waste sorting), *жарна* (contribution) | *департаментінің*, *басқармасында*, *хаты* (letter), *интернаттық* (boarding school) |
 
