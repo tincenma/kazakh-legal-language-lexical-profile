@@ -11,10 +11,25 @@ opens the act's page, clicks **Жүктеу** (download) → **PDF жүктеп 
 site builds. Only the acts on the list are fetched, one at a time, with a 4–8 s pause between
 them. Copying a text by hand (below) gives the same result.
 
+## Current status
+
+**548 of the 1,024 listed acts are collected** (136, 130, 136 and 146 in the 1990s, 2000s,
+2010s and 2020s). By collector: Temirlan 333 of 334 (`V15011690_8` could not be downloaded:
+its PDF button times out), Dilnaz 108 of 341, Zhanel 107 of 349. All reported results use
+these 548 texts.
+
+## What is in this folder
+
+| File | Contents | In git |
+|---|---|---|
+| `sample_to_collect.csv` | the list: `law_id`, decade, section, title, `url_kaz`, `collected`, `collector` | yes |
+| `<law_id>.txt` | the act's text extracted from the PDF, page-number footers removed (UTF-8) | yes |
+| `pdf/<law_id>.pdf` | the downloaded PDF | no (re-downloadable) |
+
 ## How to collect
 
-1. `sample_to_collect.csv` lists 96 acts by default: 3 per decade (1990s–2020s) in each of the
-   8 largest sections. The `collector` column splits them among the team.
+1. `sample_to_collect.csv` lists the acts to collect; the `collector` column splits them among
+   the team.
 2. Install the browser once:
    ```bash
    pip install -r requirements.txt
@@ -33,19 +48,20 @@ them. Copying a text by hand (below) gives the same result.
    python -m src.fetch_pdfs --collector Temirlan  # only your rows
    python -m src.fetch_pdfs --limit 3 --show      # a few, with the browser visible
    ```
-   Each act is saved as `pdf/<law_id>.pdf`, and its text (page-number footers removed) as
-   `<law_id>.txt` in this folder. Acts that fail are listed at the end; running the command
-   again retries only those. `--redo` downloads everything again.
+   Each act is saved as `pdf/<law_id>.pdf`, and its text as `<law_id>.txt` in this folder.
+   Acts that fail are listed at the end; running the command again retries only those.
+   `--redo` downloads everything again.
 5. Run `python main.py` and choose **10 → 2** to run the full-text analysis.
 
 **By hand instead.** Open `url_kaz` in a browser, copy the act's text, and save it as
 `<law_id>.txt` in this folder, encoded as **UTF-8** (example: `P950001664_.txt`). The
 analysis reads hand-saved and downloaded files the same way.
 
-**Changing the size.** Menu **10 → 1** asks how many acts per decade and section, and how many
-sections. The list is drawn with a fixed random key per act, so a larger list always contains
-the smaller one: texts you have already collected stay on it, and each act keeps its collector.
-The `collected` column is refilled from the files present.
+**Changing the size.** Menu **10 → 1** asks how many acts per decade and section (default 3)
+and how many sections (default 8); the current list was made with 32 × 8. The list is drawn
+with a fixed random key per act, so a larger list always contains the smaller one: texts you
+have already collected stay on it, and each act keeps its collector. The `collected` column
+is refilled from the `.txt` files present each time the list is made.
 
 | Acts per cell × sections | Acts | Download time (about 12–16 s per act, one person) |
 |---|---|---|
@@ -54,13 +70,31 @@ The `collected` column is refilled from the files present.
 | 32 × 8 (current) | 1,024 | 3.5–4.5 h, or about 1.5 h each when split among three |
 
 The model comparison needs a few hundred acts: its test set is the acts adopted in 2018 or later.
-Results get the suffix `_full` (and `_sample_title` for the same acts' titles) in
-`reports/results/` and `reports/figures/`; the source comparison is in `fulltext_vs_title.csv`
-and figures 21–22, the per-act comparison in `fulltext_case_study.csv` and figure 20.
 
-## What it measures, per act
+## What the analysis does with the texts
 
-- content tokens in the title + description vs the full text, and their ratio;
-- vocabulary of the full text, and how much stemming reduces it;
-- the share of the title's stemmed content words that also occur in the body;
-- the section the best model predicts from the title vs from the full text.
+Before analysis each text is cleaned: Latin look-alike letters inside Cyrillic words are fixed
+(Latin “i” for Kazakh “і”, in 300 of the 548 texts), the Russian header line repeating the act's
+type and date (“Закон от …”, 373 texts) and dash rulers are removed, and words hyphenated across
+a line break are joined (1,849).
+
+Menu 10 → 2 then runs, on the full texts and on the title + description of the same acts:
+
+- **audit and storage**: coverage, length, very short texts, duplicates, Russian passages
+  (`fulltext_audit.json`); the cleaned texts as Parquet, compared with the `.txt` files
+  (`fulltext_storage.json`, 24.1 MB → 7.8 MB);
+- **SQL**: a `fulltexts` table in the SQLite database and three queries
+  (`sql_fulltext_length_by_section_decade.csv`, `sql_longest_fulltext_per_decade.csv`,
+  `sql_stemming_effect_by_section.csv`);
+- **lexical profile and decades**, as menu 5–6 (outputs with the suffix `_full`);
+- **source comparison**: vocabulary, stemming, Zipf and Heaps for both sources, with the full
+  texts also cut to the titles' size (`fulltext_vs_title.csv`, figure 21);
+- **models and error analysis**, as menu 7 and 9, with the same temporal split for both sources
+  (`model_comparison_full.csv`, `model_comparison_sample_title.csv`,
+  `fulltext_vs_title_models.csv`, figure 22);
+- **per act** (`fulltext_case_study.csv`, figure 20): title vs full-text length and their
+  ratio, the full text's vocabulary and how much stemming reduces it, the share of title stems
+  found in the body, and the section the main model predicts from each.
+
+Results are in `reports/results/` and `reports/figures/`; the findings are in the main
+README, section 6.8.
