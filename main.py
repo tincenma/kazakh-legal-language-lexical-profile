@@ -26,6 +26,7 @@ MENU = {
     "7": "Train & compare models (baseline vs methods)",
     "8": "Analyze a text / query",
     "9": "Error analysis",
+    "10": "Full-text case study (sample of full acts)",
     "0": "Exit",
 }
 
@@ -159,8 +160,43 @@ def step_errors():
     mark_step_done("errors")
 
 
+def ask_int(prompt: str, default: int, low: int, high: int) -> int:
+    """Read an integer in [low, high]; Enter keeps the default."""
+    while True:
+        answer = input(f"{prompt} [{default}]: ").strip()
+        if not answer:
+            return default
+        try:
+            value = int(answer)
+        except ValueError:
+            print(f"  please enter a whole number from {low} to {high}")
+            continue
+        if low <= value <= high:
+            return value
+        print(f"  please enter a number from {low} to {high}")
+
+
+def step_fulltext():
+    """1: make or extend the list of acts to collect. 2: run the full-text comparison."""
+    from src.fulltext import N_SECTIONS, PER_CELL, load_fulltexts, make_sample, run_case_study
+    collected = len(load_fulltexts())
+    print(f"{collected} full text(s) collected so far.")
+    choice = input("1 – make or extend the list of acts   2 – run the case study: ").strip()
+    if choice == "1":
+        per_cell = ask_int("Acts per decade and section", PER_CELL, 1, 20)
+        sections = ask_int("Number of largest sections", N_SECTIONS, 1, 33)
+        print(f"About {per_cell * sections * 4} acts; already collected texts stay on the list.")
+        make_sample(get_corpus(), per_cell, sections)
+    elif choice == "2":
+        run_case_study(get_corpus())
+        mark_step_done("fulltext")
+    else:
+        print(f"'{choice}' is not an option.")
+
+
 ACTIONS = {"1": step_load, "2": step_audit, "3": step_database, "4": step_sql, "5": step_lexical,
-           "6": step_decades, "7": step_models, "8": step_analyze_text, "9": step_errors}
+           "6": step_decades, "7": step_models, "8": step_analyze_text, "9": step_errors,
+           "10": step_fulltext}
 PIPELINE = ["1", "2", "3", "4", "5", "6", "7", "9"]
 
 
@@ -187,7 +223,7 @@ def run_step(choice: str) -> bool:
 def show_menu():
     state = load_state()
     step_names = {"1": "load", "2": "audit", "3": "database", "4": "sql", "5": "lexical",
-                  "6": "decades", "7": "models", "9": "errors"}
+                  "6": "decades", "7": "models", "9": "errors", "10": "fulltext"}
     print("\n==== Kazakh Legal Lexical Profile ====")
     for key, label in MENU.items():
         done = " [done]" if step_names.get(key) in state else ""
@@ -208,7 +244,7 @@ def interactive():
         elif choice in ACTIONS:
             run_step(choice)
         else:
-            print(f"'{choice}' is not a menu option, please enter 0-9.")
+            print(f"'{choice}' is not a menu option, please enter 0-10.")
 
 
 def main():

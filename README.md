@@ -55,6 +55,8 @@ kazakh-legal-language-lexical-profile/
 │   ├── lexical.py           # vocabulary sizes, Zipf/Heaps fits, n-grams, decade comparison
 │   ├── models.py            # baselines vs methods, leakage-free split, metrics
 │   ├── error_analysis.py    # confusions, errors by text length and year
+│   ├── fulltext.py          # full-text case study: sample list, title vs full-text comparison
+│   ├── fetch_pdfs.py        # downloads the sample's PDFs from adilet.zan.kz with Playwright
 │   └── visualization.py     # Matplotlib plots, word clouds, ER diagram
 ├── sql/
 │   ├── schema.sql           # DDL: 7 tables
@@ -154,6 +156,14 @@ Decades with fewer than 300 acts are left out of the comparisons.
 ### 3.7 Error analysis (`error_analysis.py`)
 Covers the confusion matrix, the most frequent *true → predicted* section pairs, error rate by text length and by year, sample errors (`error_examples.csv`), and the acts that only the word-form model or only the char n-gram model gets right.
 
+### 3.8 Full-text case study (`fulltext.py`, menu item 10)
+The corpus has no full act texts. adilet.zan.kz has no bulk download, and its robots.txt disallows the `/api/` that serves act texts, so the corpus is not crawled. Instead, the full texts of a small stratified sample are downloaded through the site's own interface:
+- 96 acts by default, 3 per decade (1990s–2020s) in each of the 8 largest sections, listed in `data/fulltext/sample_to_collect.csv` with a collector assigned to each. Menu 10 → 1 changes the size; a larger list always contains the smaller one, so texts already collected stay valid.
+- `fetch_pdfs.py` drives a real browser (Playwright), signed in with a team member's account. For each act on the list it opens the act's page, clicks **Жүктеу** → **PDF жүктеп алу**, and saves the PDF. Acts are fetched one at a time with a 4–8 s pause. The PDF text, with page-number footers removed, is saved as `data/fulltext/<law_id>.txt`. A text copied by hand into that file works the same way.
+- For each act, the module compares the title + description with the full text: length, vocabulary, the effect of stemming, the share of title words that occur in the body, and the section the best model predicts from each.
+
+The steps are described in `data/fulltext/README.md`.
+
 ---
 
 ## 4. Installation and running
@@ -180,6 +190,18 @@ python -m venv .venv
 ```bash
 pip install -r requirements.txt
 ```
+
+Only the full-text download (§3.8) needs a browser. Install it once, then sign in once in the window that opens:
+
+```bash
+python -m playwright install chromium
+```
+
+```bash
+python -m src.fetch_pdfs --login
+```
+
+Then download the sample with `python -m src.fetch_pdfs`. See `data/fulltext/README.md` for the options.
 
 **Interactive menu:**
 
@@ -214,6 +236,7 @@ If the CSV is stored somewhere else (for example on Google Drive in Colab), set 
 7 – Train & compare models (baseline vs methods)
 8 – Analyze a text / query
 9 – Error analysis
+10 – Full-text case study (sample of full acts)
 0 – Exit
 ```
 
