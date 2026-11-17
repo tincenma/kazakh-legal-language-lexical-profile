@@ -18,3 +18,6 @@ venv/
 .DS_Store
 Thumbs.db
 reports/results/state.json
+
+# full-text PDFs (re-downloaded by src/fetch_pdfs.py; only the .txt files are kept)
+data/fulltext/pdf/
